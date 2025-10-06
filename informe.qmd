@@ -1,0 +1,50 @@
+---
+title: "Análisis de Datos del Maratón de Boston"
+author:
+  - "Alba"
+  - "Alonso"
+  - "Daniel López Paredes"
+date: "2025-10-05"
+format: html
+toc: true
+toc-depth: 2
+number-sections: true
+lang: es
+keywords: ["maratón", "análisis de datos", "Boston"]
+abstract: "Informe exploratorio y analítico de los resultados del Maratón de Boston."
+---
+
+# Análisis de Datos del Maratón de Boston
+
+## Tabla de Contenidos
+
+1. [Introducción](#introducción)
+2. [Descripción del Dataset](#descripción-del-dataset)
+3. [Análisis Univariante](#análisis-univariante)
+4. [Análisis Bivariante y Multivariante](#análisis-bivariante-y-multivariante)
+5. [Identificación de Patrones y Formulación de Preguntas](#identificación-de-patrones-y-formulación-de-preguntas)
+6. [Conclusiones](#conclusiones)
+
+## Introducción
+
+<!-- Breve introducción al informe y al objetivo del análisis. -->
+
+## Descripción del Dataset
+
+<!-- Explicación de la fuente de datos, variables principales y estructura general. -->
+
+## Análisis Univariante
+
+<!-- Exploración de variables individuales: distribuciones, estadísticos descriptivos, etc. -->
+
+## Análisis Bivariante y Multivariante
+
+<!-- Relación entre variables, correlaciones, visualizaciones conjuntas, etc. -->
+
+## Identificación de Patrones y Formulación de Preguntas
+
+<!-- Detección de tendencias, patrones interesantes y planteamiento de preguntas para análisis futuros. -->
+
+## Conclusiones
+
+<!-- Resumen de hallazgos principales y posibles líneas de investigación. -->

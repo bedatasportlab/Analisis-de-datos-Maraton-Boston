@@ -1,0 +1,49 @@
+---
+title: "Tests y Pruebas de Código"
+author:
+  - "Autor 1"
+  - "Autor 2"
+  - "Autor 3"
+date: "2025-10-06"
+format: html
+toc: false
+number-sections: false
+lang: es
+abstract: "Documento auxiliar para testear y depurar fragmentos de código relacionados con el análisis de datos de la Maratón de Boston."
+---
+
+# Pruebas de Código
+
+Este documento está destinado exclusivamente a la ejecución y prueba de fragmentos de código, sin afectar el informe principal.
+
+# Importacion de librerias
+
+```{python}
+#| label: setup
+#| include: false
+import pandas as pd
+import numpy as np
+```
+
+
+## Vista de Dataset Resultados Maraton Boston 2016
+
+```{python}
+df = pd.read_csv("data/results2016.csv")
+
+# Vista previa
+df.head()
+```
+
+### Informacion general
+
+```{python}
+
+# Información general
+df.info()
+
+# Resumen estadístico
+df.describe(include="all")
+
+```
+

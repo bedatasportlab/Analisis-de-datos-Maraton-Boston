@@ -16,34 +16,96 @@ abstract: "Documento auxiliar para testear y depurar fragmentos de código relac
 
 Este documento está destinado exclusivamente a la ejecución y prueba de fragmentos de código, sin afectar el informe principal.
 
-# Importacion de librerias
+## Importacion de librerias
 
-```{python}
+```{r}
 #| label: setup
 #| include: false
-import pandas as pd
-import numpy as np
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
 ```
 
+## Lectura de Dataset Resultados Maraton Boston 2016
 
-## Vista de Dataset Resultados Maraton Boston 2016
-
-```{python}
-df = pd.read_csv("data/results2016.csv")
+```{r}
+df <- read_csv("data/results2016.csv")
 
 # Vista previa
-df.head()
+head(df)
 ```
 
-### Informacion general
+### Problemas detectados
 
-```{python}
+```{r}
+  print(problems(df), n = Inf)
+  problems(df) |> distinct(expected, actual)
+```
 
-# Información general
-df.info()
+### Solventar problemas de lectura
+```{r}
 
-# Resumen estadístico
-df.describe(include="all")
+df <- read_csv("data/results2016.csv", na = c("-", "DNF", "NULL", ""))
+
+# Vista previa (no saltan warnings)
+head(df)
 
 ```
 
+
+## Informacion general
+
+```{r}
+
+# Dimensiones del dataset
+dim(df)          # Número de filas y columnas
+
+# Nombres de columnas
+names(df)
+
+# Estructura (tipo de dato de cada columna)
+str(df)
+
+# Vista previa de las primeras filas
+head(df)
+
+# Vista general (tamaño + tipos + resumen numérico básico)
+glimpse(df)      # del paquete dplyr
+
+
+```
+
+### Metricas de calidad de los datos 
+
+```{r}
+# Métricas de calidad de los datos
+summary(df)
+
+# Valores null
+sapply(df, function(x) sum(is.na(x)))
+
+# Valores únicos por columna
+sapply(df, function(x) length(unique(x)))
+
+```
+
+## Estadísticas descriptivas
+
+```{r}
+
+# Estadísticas descriptivas para columnas numéricas
+summary(select(df, where(is.numeric)))
+
+```
+```{r}
+# Porcentaje de valores NA por columna
+df %>%
+  summarise(across(everything(), ~sum(is.na(.)))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "n_missing") %>%
+  ggplot(aes(x = reorder(variable, -n_missing), y = n_missing)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Valores faltantes por variable", x = "", y = "Número de NAs")
+
+```

@@ -34,6 +34,8 @@ df <- read_csv("data/results2016.csv")
 
 # Vista previa
 head(df)
+
+glimpse(df)
 ```
 
 ### Problemas detectados

@@ -1,37 +1,121 @@
 ---
-title: "Análisis de Datos del Maratón de Boston"
+title: "Análisis Exploratorio de Datos. La Maratón de Tokyo 2025."
 author:
-  - "Alba"
-  - "Alonso"
+  - "Alba Martínez de la Hermosa"
+  - "Alonso González Romero"
   - "Daniel López Paredes"
-date: "2025-10-05"
+date: "2025-10-16"
 format: html
 toc: true
 toc-depth: 2
 number-sections: true
 lang: es
-keywords: ["maratón", "análisis de datos", "Boston"]
-abstract: "Informe exploratorio y analítico de los resultados del Maratón de Boston."
+keywords: ["maratón", "análisis de datos", "Tokyo"]
+abstract: "MODIFICAR."
 ---
 
-# Análisis de Datos del Maratón de Boston
+# Importación de librerías. 
 
-## Tabla de Contenidos
+```{r}
+# Importación de todas las librerías usadas durante el informe y breve descripcion
+library(readr) # Libreria para poder importar los datos desde un csv.
+library(ggplot2) # Libreria para poder hacer gráficos.
+library(DT) # Libreria para poder visualizar dataframes en qmd de manera interactiva.
+library(hms) # Libreria para poder tratar datos referentes a horas, minutos y segundos.
+```
 
-1. [Introducción](#introducción)
-2. [Descripción del Dataset](#descripción-del-dataset)
-3. [Análisis Univariante](#análisis-univariante)
-4. [Análisis Bivariante y Multivariante](#análisis-bivariante-y-multivariante)
-5. [Identificación de Patrones y Formulación de Preguntas](#identificación-de-patrones-y-formulación-de-preguntas)
-6. [Conclusiones](#conclusiones)
+# Introducción
+El **maratón de Tokyo 2025** se celebró, en su 18ª edición, el domingo 2 de marzo de 2025. Esta edición forma parte de los World Marathon Majors y abrió la temporada 2025 de los grandes maratones internacionales. El recorrido atraviesa distintos puntos icónicos de la ciudad de Tokyo, siendo su inicio frente al edificio del Gobierno Metropolitano y la línea de meta cerca de la estación Tokyo/Gyoko-dori Avenue. El maratón de Tokyo es un evento de gran participación, tanto de atletas de élite como de aficionados. 
 
-## Introducción
+En el presente documento se realizará un análisis exploratorio de datos (EDA) con el objetivo de extraer información relevante acerca de los resultados de los corredores que participaron en dicha prueba.
 
-<!-- Breve introducción al informe y al objetivo del análisis. -->
+# Presentación y Descripción del Dataset
+Los resultados del maratón de Tokyo han sido extraídos a través del siguiente [enlace](https://www.marathon.tokyo/2025/result). La extracción se ha realizado a través de técnicas de Web Scrapping con el objetivo de poder extraer datos relevantes referentes a los resultados de los corredores participantes. 
+
+## Importación del Dataset
+
+A continuación, se realiza la correspondiente importación de los datos extraídos:
+
+```{r}
+resultadosTokyo2025 <- read_csv(
+  "data/Maraton_Tokyo/marathon_tokyo_results_2025.csv",
+  col_types = cols(
+    BIB = col_integer(),
+    Nombre = col_character(),
+    Nacionalidad = col_character(),
+    Genero = col_character(),
+    Edad = col_integer(),
+    tiempo_oficial = col_time(format = "%H:%M:%S"),
+    parcial_5km = col_time(format = "%H:%M:%S"),
+    parcial_10km = col_time(format = "%H:%M:%S"),
+    parcial_15km = col_time(format = "%H:%M:%S"),
+    parcial_20km = col_time(format = "%H:%M:%S"),
+    medio_maraton = col_time(format = "%H:%M:%S"),
+    parcial_25km = col_time(format = "%H:%M:%S"),
+    parcial_30km = col_time(format = "%H:%M:%S"),
+    parcial_35km = col_time(format = "%H:%M:%S"),
+    parcial_40km = col_time(format = "%H:%M:%S")),
+  quote = "\"")
+
+  # Transformacion a formato dataframe. 
+  resultadosTokyo2025<- as.data.frame(resultadosTokyo2025)
+```
+
 
 ## Descripción del Dataset
+El dataframe importado, *resultadosTokyo2025*, consta de las siguientes variables: 
 
-<!-- Explicación de la fuente de datos, variables principales y estructura general. -->
+| Variable       | Tipo            | Descripción                                        | Unidades      |
+| -------------- | --------------- | -------------------------------------------------- | ------------- |
+| BIB            | Numérica/Entero | Número de dorsal asignado al corredor, valor único | Número entero |
+| Nombre         | Cadena de texto | Nombre y apellidos del corredor                    | Texto         |
+| Nacionalidad   | Cadena de texto | País de procedencia del corredor                   | Texto         |
+| Genero         | Categórica      | Género del corredor                                | Texto         |
+| Edad           | Numérica/Entero | Edad del corredor                                  | Años          |
+| tiempo_oficial | Tiempo          | Tiempo total oficial de la maratón (gross time)    | hh:mm:ss      |
+| parcial_5km    | Tiempo          | Tiempo de paso en el km 5                          | hh:mm:ss      |
+| parcial_10km   | Tiempo          | Tiempo de paso en el km 10                         | hh:mm:ss      |
+| parcial_15km   | Tiempo          | Tiempo de paso en el km 15                         | hh:mm:ss      |
+| parcial_20km   | Tiempo          | Tiempo de paso en el km 20                         | hh:mm:ss      |
+| medio_Maraton  | Tiempo          | Tiempo al paso del medio maratón (21,097 km)       | hh:mm:ss      |
+| parcial_25km   | Tiempo          | Tiempo de paso en el km 25                         | hh:mm:ss      |
+| parcial_30km   | Tiempo          | Tiempo de paso en el km 30                         | hh:mm:ss      |
+| parcial_35km   | Tiempo          | Tiempo de paso en el km 35                         | hh:mm:ss      |
+| parcial_40km   | Tiempo          | Tiempo de paso en el km 40                         | hh:mm:ss      |
+
+
+*Nota: El gross time es el tiempo que tarda un corredor en terminar la maratón desde que se da el pistoletazo de salida, no desde que cruza la línea de inicio de la prueba*
+ 
+## Lectura de una fila
+
+Una vez que conocemos el significado de cada variable por separado, se va a proceder a la lectura de la primera fila del *dataframe* con el objetivo de mejorar la comprensión sobre el formato de los datos:
+
+```{r}
+# Lo visualizamos con la libreria DT porque es más interactiva a la hora de generar el documento qmd.
+datatable(
+  resultadosTokyo2025,
+  options = list(
+    pageLength = 1,    # cuántas filas mostrar
+    scrollX = TRUE,    # habilita scroll horizontal si la fila es muy ancha
+    dom = 't'          # solo muestra la tabla sin paginación ni búsqueda
+  ),
+  rownames = FALSE      # quitar número de fila en la tabla
+)
+
+```
+
+Se puede observar al corredor **Tadese Takele**, de nacionalidad **Etíope**, que corrió la maratón con el dorsal **número 5**. Tadese completó la maratón a sus 22 años con un tiempo de **2 horas, 3 minutos y 23 segundos**, pudiendose observar sus tiempos de paso cada 5 kilómetros y en el punto de la media maratón. 
+
+## Dimensiones del dataset
+
+```{r}
+filas <- nrow(resultadosTokyo2025)
+columnas <- ncol(resultadosTokyo2025)
+cat("El dataframe resultadosTokyo2025 contiene", filas, "filas y", columnas, "columnas.")
+# Elimino el número de filas y columnas con el objetivo de no sobrecargar el enviroment.
+rm(filas,columnas)
+```
+
 
 ## Análisis Univariante
 

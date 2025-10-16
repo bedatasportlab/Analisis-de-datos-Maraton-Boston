@@ -25,12 +25,12 @@ library(hms) # Libreria para poder tratar datos referentes a horas, minutos y se
 ```
 
 # Introducción
-El **maratón de Tokyo 2025** se celebró, en su 18ª edición, el domingo 2 de marzo de 2025. Esta edición forma parte de los World Marathon Majors y abrió la temporada 2025 de los grandes maratones internacionales. El recorrido atraviesa distintos puntos icónicos de la ciudad de Tokyo, siendo su inicio frente al edificio del Gobierno Metropolitano y la línea de meta cerca de la estación Tokyo/Gyoko-dori Avenue. El maratón de Tokyo es un evento de gran participación, tanto de atletas de élite como de aficionados. 
+El **maratón de Tokyo 2025** se celebró, en su 18ª edición, el domingo 2 de marzo de 2025. Esta edición forma parte de los World Marathon Majors y abrió la temporada 2025 de los grandes maratones internacionales. El recorrido atraviesa distintos puntos icónicos de la ciudad de Tokyo, estando su inicio frente al edificio del Gobierno Metropolitano y la línea de meta cerca de la estación Tokyo/Gyoko-dori Avenue. El maratón de Tokyo es un evento de gran participación, tanto de atletas de élite como de aficionados. 
 
 En el presente documento se realizará un análisis exploratorio de datos (EDA) con el objetivo de extraer información relevante acerca de los resultados de los corredores que participaron en dicha prueba.
 
 # Presentación y Descripción del Dataset
-Los resultados del maratón de Tokyo han sido extraídos a través del siguiente [enlace](https://www.marathon.tokyo/2025/result). La extracción se ha realizado a través de técnicas de Web Scrapping con el objetivo de poder extraer datos relevantes referentes a los resultados de los corredores participantes. 
+Los resultados del maratón de Tokyo han sido extraídos a través del siguiente [enlace](https://www.marathon.tokyo/2025/result). La extracción se ha realizado a través de técnicas de Web Scrapping con el objetivo de poder obtener datos relevantes referentes a los resultados de los corredores participantes.
 
 ## Importación del Dataset
 

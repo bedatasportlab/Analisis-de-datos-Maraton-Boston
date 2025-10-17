@@ -22,6 +22,10 @@ library(readr) # Libreria para poder importar los datos desde un csv.
 library(ggplot2) # Libreria para poder hacer gráficos.
 library(DT) # Libreria para poder visualizar dataframes en qmd de manera interactiva.
 library(hms) # Libreria para poder tratar datos referentes a horas, minutos y segundos.
+library(dplyr) # Libreria para poder manipular dataframes.
+library(ggplot2) # Libreria para poder hacer gráficos.
+library(tidyr) # Libreria para poder transformar dataframes.
+library(e1071) # para skewness() y kurtosis()
 ```
 
 # Introducción
@@ -54,11 +58,13 @@ resultadosTokyo2025 <- read_csv(
     parcial_25km = col_time(format = "%H:%M:%S"),
     parcial_30km = col_time(format = "%H:%M:%S"),
     parcial_35km = col_time(format = "%H:%M:%S"),
-    parcial_40km = col_time(format = "%H:%M:%S")),
-  quote = "\"")
+    parcial_40km = col_time(format = "%H:%M:%S")
+  ),
+  quote = "\""
+)
 
-  # Transformacion a formato dataframe. 
-  resultadosTokyo2025<- as.data.frame(resultadosTokyo2025)
+# Transformacion a formato dataframe.
+resultadosTokyo2025 <- as.data.frame(resultadosTokyo2025)
 ```
 
 
@@ -95,11 +101,11 @@ Una vez que conocemos el significado de cada variable por separado, se va a proc
 datatable(
   resultadosTokyo2025,
   options = list(
-    pageLength = 1,    # cuántas filas mostrar
-    scrollX = TRUE,    # habilita scroll horizontal si la fila es muy ancha
-    dom = 't'          # solo muestra la tabla sin paginación ni búsqueda
+    pageLength = 1, # cuántas filas mostrar
+    scrollX = TRUE, # habilita scroll horizontal si la fila es muy ancha
+    dom = 't' # solo muestra la tabla sin paginación ni búsqueda
   ),
-  rownames = FALSE      # quitar número de fila en la tabla
+  rownames = FALSE # quitar número de fila en la tabla
 )
 
 ```
@@ -111,9 +117,15 @@ Se puede observar al corredor **Tadese Takele**, de nacionalidad **Etíope**, qu
 ```{r}
 filas <- nrow(resultadosTokyo2025)
 columnas <- ncol(resultadosTokyo2025)
-cat("El dataframe resultadosTokyo2025 contiene", filas, "filas y", columnas, "columnas.")
+cat(
+  "El dataframe resultadosTokyo2025 contiene",
+  filas,
+  "filas y",
+  columnas,
+  "columnas."
+)
 # Elimino el número de filas y columnas con el objetivo de no sobrecargar el environment.
-rm(filas,columnas)
+rm(filas, columnas)
 ```
 
 ## Descripción estadística del DataFrame
@@ -195,7 +207,91 @@ Fila 13165: Falta parcial 40
 
 ## Análisis Univariante
 
+DF TEMPORAL PARA EMPEZAR SECCION
+
+```{r}
+df_seconds <- resultadosTokyo2025 %>%
+  mutate(
+    across(
+      matches("^tiempo_oficial$|^parcial_\\d+km$|^medio_maraton$"),
+      ~ as.numeric(.x)
+    )
+  )
+
+# Vista previa
+glimpse(df_seconds)
+```
+
 <!-- Exploración de variables individuales: distribuciones, estadísticos descriptivos, etc. -->
+
+Bajo este análisis se examinará cada variable del conjunto de datos para resumir su distribución, principales características y tendencias. Este tipo de análisis se centra en **una sola variable a la vez**, sin tener en cuenta su relación con otras, y permite obtener una primera descripción general de los datos. A continuación se revisa cada variable del dataset para observar sus principales características estadísticas.
+
+### Edad
+
+Esta variable indica la **edad** de los corredores que participaron en la maratón. Primero se examinán los principales estadísticos de centralización: media, moda y mediana
+
+```{r}
+# Fun. moda que devuelve el valor más frecuente (si hay empates devuelve el primero)
+moda <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(NA_real_)
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Estadísticos resumidos (redondeados)
+edad_stats <- df_seconds %>%
+  summarise(
+    n = sum(!is.na(Edad)),
+    n_missing = sum(is.na(Edad)),
+    media = round(mean(Edad, na.rm = TRUE), 2),
+    mediana = median(Edad, na.rm = TRUE),
+    moda = moda(Edad),
+  )
+
+datatable(
+  edad_stats,
+  options = list(dom = 't'),
+  rownames = FALSE
+)
+
+```
+
+Representado de forma gráfica, en la siguiente figura se observa un histograma con línea de densidad y los correspondientes valores de media, mediana y moda.
+
+```{r}
+
+# Valores para líneas en los gráficos
+mu <- edad_stats$media
+med <- edad_stats$mediana
+mod <- edad_stats$moda
+
+p_hist <- ggplot(df_seconds, aes(x = Edad)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "#90CAF9", color = "gray30") +
+  geom_density(fill = "#1976D2", alpha = 0.15) +
+  geom_vline(xintercept = mu, color = "#D32F2F", size = 1, linetype = "solid") +
+  geom_vline(xintercept = med, color = "#F9A825", size = 1, linetype = "dashed") +
+  geom_vline(xintercept = mod, color = "#2E7D32", size = 1, linetype = "dotdash") +
+  annotate("text", x = mu, y = Inf, label = paste0("Media: ", mu), vjust = 2.2, color = "#D32F2F", size = 3.5) +
+  annotate("text", x = med, y = Inf, label = paste0("Mediana: ", med), vjust = 3.8, color = "#F9A825", size = 3.5) +
+  annotate("text", x = mod, y = Inf, label = paste0("Moda: ", mod), vjust = 5.4, color = "#2E7D32", size = 3.5) +
+  labs(title = "Distribución de Edad (histograma + densidad)",
+       x = "Edad (años)", y = "Densidad") +
+  theme_minimal(base_size = 12)
+
+p_hist
+```
+
+
+### Género
+
+### Nacionalidad
+
+### Tiempo Oficial
+
+### Tiempos Parciales
+
+
 
 ## Análisis Bivariante y Multivariante
 

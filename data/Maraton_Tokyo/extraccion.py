@@ -104,9 +104,9 @@ def get_runner_details(bib_number, session, base_url):
                         elif '国籍' in th or 'Nationality' in th:
                             runner_data['Nacionalidad'] = td
                         elif 'タイム(ネット)' in th or 'Time (net)' in th:
-                            runner_data['tiempo_neto'] = td
+                            runner_data['tiempo_oficial_net'] = td
                         elif 'タイム(グロス)' in th or 'Time (gross)' in th:
-                            runner_data['tiempo_oficial'] = td
+                            runner_data['tiempo_oficial_gross'] = td
 
             # Procesar tablas de tiempos parciales (tabla 3 específicamente)
             if len(tables) > 2:
@@ -394,7 +394,7 @@ def main():
         print(f"📁 Guardando todos los datos en '{filename}'...")
         df = pd.DataFrame(all_runners_data)
         
-        column_order = ["BIB", "Nombre", "Nacionalidad", "Genero", "Edad", "tiempo_oficial",
+        column_order = ["BIB", "Nombre", "Nacionalidad", "Genero", "Edad", "tiempo_oficial_net", "tiempo_oficial_gross",
                         "parcial_5km", "parcial_10km", "parcial_15km", "parcial_20km", 
                         "medio_maraton", "parcial_25km", "parcial_30km", "parcial_35km", "parcial_40km"]
         

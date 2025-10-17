@@ -3,7 +3,7 @@
 # ========== CONFIGURACIÓN PRINCIPAL ==========
 # Cambia esta variable para elegir el modo de extracción:
 
-MODO_EXTRACCION = "completo"  # Opciones: "prueba_mini", "prueba_extendida", "completo"
+MODO_EXTRACCION = "prueba_mini"  # Opciones: "prueba_mini", "prueba_extendida", "completo"
 
 # ========== CONFIGURACIÓN DE MODOS ==========
 CONFIGURACION = {

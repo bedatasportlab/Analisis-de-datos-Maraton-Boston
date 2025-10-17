@@ -30,7 +30,7 @@ library(tidyr)
 ## Lectura de Dataset Resultados Maraton Boston 2016
 
 ```{r}
-df <- read_csv("data/results2016.csv")
+df <- read_csv("data/Maraton_Tokyo/marathon_tokyo_results_2025.csv")
 
 # Vista previa
 head(df)
@@ -90,6 +90,8 @@ sapply(df, function(x) sum(is.na(x)))
 # Valores únicos por columna
 sapply(df, function(x) length(unique(x)))
 
+nrow(df)
+distinct(df) %>% summarise(across(everything(), ~n_distinct(.)))
 ```
 
 ## Estadísticas descriptivas

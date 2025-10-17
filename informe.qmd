@@ -170,7 +170,7 @@ resumen_tiempos_convertidos
 
 ## Limpieza de datos
 
-### Datos faltantes y duplicados
+### Datos faltantes
 
 ```{r}
 #Filas con NA
@@ -184,20 +184,127 @@ head(filas_con_na, 20)
 
 Hay 43 filas con columnas que contienen NA. Ahora hay que ver cuáles de esas columnas son las que tienen los NA para cada fila. O sea, ver para cada corredor, qué parcial le falta.
 
-Fila 4377: Faltan todos los parciales
-Fila 4713: Falta parcial 25
-Fila 4909: Falta parcial 15, 20, 30
-Fila 92503: Falta todos los parciales excepto media maratón
-Fila 9685: Falta parcial 40
-Fila 10662: Falta parcial 20
-Fila 10808: Falta parcial 5
-Fila 11881: Falta parcial 20
-Fila 12089: Faltan todos
-Fila 12814: Falta el 25
-Fila 12951: Falta el 40
-Fila 12983: Falta media maraton
-Fila 13165: Falta parcial 40
+```{r}
+texto_na <- "4377: parcial_5km, parcial_10km, parcial_15km, parcial_20km, medio_maraton, parcial_25km, parcial_30km, parcial_35km, parcial_40km
+4713: parcial_25km
+4909: parcial_15km, parcial_20km, parcial_30km
+92503: parcial_5km, parcial_10km, parcial_15km, parcial_20km, parcial_25km, parcial_30km, parcial_35km, parcial_40km
+9685: parcial_40km
+10662: parcial_20km
+10808: parcial_5km
+11881: parcial_20km
+12089: parcial_5km, parcial_10km, parcial_15km, parcial_20km, medio_maraton, parcial_25km, parcial_30km, parcial_35km, parcial_40km
+12814: parcial_25km
+12951: parcial_40km
+12983: medio_maraton
+13165: parcial_40km
+14445: parcial_15km
+14647: parcial_30km, parcial_35km, parcial_40km
+14783: parcial_10km, parcial_15km
+16263: parcial_15km
+17239: parcial_20km
+17945: parcial_25km
+18094: parcial_40km, parcial_35km
+19232: parcial_5km
+19838: parcial_25km
+19916: parcial_5km 
+21392: parcial_5km
+22564: parcial_5km, parcial_10km, parcial_15km, medio_maraton, parcial_25km
+22724: parcial_10km
+22734: parcial_25km
+23848: parcial_25km
+24137: parcial_20km
+24377: parcial_25km
+24562: parcial_5km
+26547: parcial_25km
+28195: parcial_40km
+29145: parcial_20km, parcial_15km
+29264: parcial_10km
+29552: parcial_30km
+30117: parcial_30km
+31818: parcial_5km
+32846: parcial_5km
+33580: parcial_30km
+34921: parcial_25km
+35127: parcial_25km
+36009: parcial_40km
+"
+```
+```{r}
+lineas <- strsplit(texto_na, "\n")[[1]] #separar el texto
+lineas <- trimws(lineas[lineas != ""]) #quita celdas vacías y espacios
 
+na_df <- data.frame(
+  fila = sub(":.*", "", lineas), #hasta los dos puntos es la fila
+  columnas = sub(".*:\\s*", "", lineas), #desde los dos puntos son las columnas
+  stringsAsFactors = FALSE
+)
+```
+
+Con esto ya se tiene un dataframe en el que aparecen las filas y al lado las correspondientes columnas donde se sitúan los valores NA.
+
+Ahora se procede a la clasificación de esas filas según si faltan más de tres parciales (y por tanto se debe descartar a ese corredor porque no se puede hacer ningún cálculo) o si solo faltan 3 o menos, lo que permitirá estimar el parcial e imputarlo en el dataframe resultadosTokyo2025.
+
+```{r}
+#NA por fila
+na_df$n_na <- sapply(na_df$columnas, function(x) {
+  length(trimws(unlist(strsplit(x, ","))))
+})
+
+# Clasificar filas
+na_df$clasificacion <- ifelse(
+  na_df$n_na > 3, "descartar",   # más de 3 NAs → descartar
+  "imputable"                    # 3 o menos NAs → se puede imputar
+)
+
+# Columna de descarte y filas a imputar
+na_df$descarte <- na_df$clasificacion == "descartar"
+filas_para_imputar <- na_df[na_df$descarte == FALSE, ]
+```
+
+**Aquí me falta imputar**
+
+### Valores únicos - datos duplicados
+
+```{r}
+cols_para_duplicados <- c(cols_tiempo, "BIB")
+valores_unicos <- lapply(resultadosTokyo2025[cols_para_duplicados], unique)
+valores_unicos
+```
+
+```{r}
+#Valores únicos por columna
+n_unicos <- sapply(valores_unicos, length)
+
+# Número de filas total
+n_filas <- nrow(resultadosTokyo2025)
+
+# Comprobar si hay duplicados
+for(col in names(n_unicos)){
+  if(n_unicos[col] == n_filas){
+    message(paste("Columna", col, ": Ningún valor duplicado"))
+  } else {
+    message(paste("Columna", col, "tiene duplicados"))
+  }
+}
+```
+
+En este apartado se ha comprobado que no hay ningún corredor duplicado y que en todos los parciales hay valores duplicados, lo que significa que se pueden identificar grupos de carrera según el ritmo.
+
+```{r}
+for(col in cols_tiempo){
+  freq <- table(resultadosTokyo2025[[col]])  # cuenta cuántas veces aparece cada valor
+  duplicados <- freq[freq > 1]               # filtra solo los que aparecen más de una vez
+  if(length(duplicados) > 0){
+    cat("\nColumna:", col, "\n")
+    print(duplicados)
+  } else {
+    cat("\nColumna:", col, "→ Ningún duplicado\n")
+  }
+}
+```
+
+**Aquí me falta ver si merece la pena agrupar los tiempos para identificar los grupos de carrera**
 
 ### Transformación de datos
 
@@ -301,7 +408,10 @@ p_hist
 
 <!-- Detección de tendencias, patrones interesantes y planteamiento de preguntas para análisis futuros. -->
 **Posibles preguntas:**
-Teniendo el ritmo medio en min/km por cada 5km, ver cuándo los atletas cambian ese ritmo(aumentan o disminuyen ritmo): deteccion de estrategias, deteccion de muro (y posibles recomendaciones de entrenamiento), diferencias entre un perfil de corredor y otro...
+
+1. Teniendo el ritmo medio en min/km por cada 5km, ver cuándo los atletas cambian ese ritmo(aumentan o disminuyen ritmo): deteccion de estrategias, deteccion de muro (y posibles recomendaciones de entrenamiento), diferencias entre un perfil de corredor y otro...
+
+2. En el caso de poder hacer grupos de carrera si hay los suficientes valores duplicados, se puede ver cómo evolucionan esos grupos, ver qué gente se cae del grupo - teniendo los min/km o cualquier otra medida de velocidad se puede ver qué ritmo son capaces de aguantar los corredores y sacar porcentajes, por ejemplo 3% de atletas aguantaron el ritmo 4'11"/km hasta el final. Si además da tiempo a comparar con otras maratones se pueden comparar porcentajes y dar una explicación por tipo de campeonato o por condiciones de la maratón. *DARLE MÁS DE UNA VUELTA A ESTO*. 
 
 ## Conclusiones
 

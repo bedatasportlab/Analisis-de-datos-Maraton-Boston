@@ -77,7 +77,7 @@ El dataframe importado, *resultadosTokyo2025*, consta de las siguientes variable
 | parcial_10km   | Tiempo          | Tiempo de paso en el km 10                         | hh:mm:ss      |
 | parcial_15km   | Tiempo          | Tiempo de paso en el km 15                         | hh:mm:ss      |
 | parcial_20km   | Tiempo          | Tiempo de paso en el km 20                         | hh:mm:ss      |
-| medio_Maraton  | Tiempo          | Tiempo al paso del medio maratón (21,097 km)       | hh:mm:ss      |
+| medio_maraton  | Tiempo          | Tiempo al paso del medio maratón (21,097 km)       | hh:mm:ss      |
 | parcial_25km   | Tiempo          | Tiempo de paso en el km 25                         | hh:mm:ss      |
 | parcial_30km   | Tiempo          | Tiempo de paso en el km 30                         | hh:mm:ss      |
 | parcial_35km   | Tiempo          | Tiempo de paso en el km 35                         | hh:mm:ss      |
@@ -112,10 +112,86 @@ Se puede observar al corredor **Tadese Takele**, de nacionalidad **Etíope**, qu
 filas <- nrow(resultadosTokyo2025)
 columnas <- ncol(resultadosTokyo2025)
 cat("El dataframe resultadosTokyo2025 contiene", filas, "filas y", columnas, "columnas.")
-# Elimino el número de filas y columnas con el objetivo de no sobrecargar el enviroment.
+# Elimino el número de filas y columnas con el objetivo de no sobrecargar el environment.
 rm(filas,columnas)
 ```
 
+## Descripción estadística del DataFrame
+
+En este apartado se calculan las estadísticas para comprobar qué datos es necesario limpiar y posteriormente poder hacer un análisis fiable.
+```{r}
+#Estadísticas de Edad
+resumen_edad <- data.frame(
+    Minimo = min(resultadosTokyo2025$Edad, na.rm = TRUE),
+    Maximo = max(resultadosTokyo2025$Edad, na.rm = TRUE),
+    Media = round(mean(resultadosTokyo2025$Edad, na.rm = TRUE),2),
+    Nulos = sum(is.na(resultadosTokyo2025$Edad))
+)
+resumen_edad
+```
+
+```{r}
+#Estadísticas tiempo
+cols_tiempo <- c("tiempo_oficial", "parcial_5km", "parcial_10km", "parcial_15km", "parcial_20km", "medio_maraton", "parcial_25km", "parcial_30km", "parcial_35km", "parcial_40km")
+
+resultadosTokyo2025[cols_tiempo] <- lapply(resultadosTokyo2025[cols_tiempo], as_hms) #columnas a tipo hms
+
+resumen_tiempos <- data.frame(
+  Minimo = sapply(resultadosTokyo2025[cols_tiempo], min, na.rm = TRUE),
+  Maximo = sapply(resultadosTokyo2025[cols_tiempo], max, na.rm = TRUE),
+  Media  = sapply(resultadosTokyo2025[cols_tiempo], function(x) round(mean(x, na.rm = TRUE), 2)),
+  Nulos  = sapply(resultadosTokyo2025[cols_tiempo], function(x) sum(is.na(x)))
+)
+resumen_tiempos
+```
+
+```{r}
+#Estadísticas tiempos en hms
+resumen_tiempos_convertidos <- data.frame (
+  Minimo_hms = resumen_tiempos$Minimo <- as_hms((resumen_tiempos$Minimo)),
+  Maximo_hms = resumen_tiempos$Maximo <- as_hms((resumen_tiempos$Maximo)),
+  Media_hms = resumen_tiempos$Media <- as_hms((resumen_tiempos$Media)),
+  Nulos  = sapply(resultadosTokyo2025[cols_tiempo], function(x) sum(is.na(x)))
+)
+resumen_tiempos_convertidos
+```
+
+## Limpieza de datos
+
+### Datos faltantes y duplicados
+
+```{r}
+#Filas con NA
+filas_con_na <- resultadosTokyo2025[ rowSums(is.na(resultadosTokyo2025[cols_tiempo])) > 0, ]
+which(is.na(resultadosTokyo2025[cols_tiempo]), arr.ind = TRUE)
+
+#Filas con NA en cada columna
+filas_con_na <- resultadosTokyo2025[rowSums(is.na(resultadosTokyo2025[cols_tiempo])) > 0, ]
+head(filas_con_na, 20)
+```
+
+Hay 43 filas con columnas que contienen NA. Ahora hay que ver cuáles de esas columnas son las que tienen los NA para cada fila. O sea, ver para cada corredor, qué parcial le falta.
+
+Fila 4377: Faltan todos los parciales
+Fila 4713: Falta parcial 25
+Fila 4909: Falta parcial 15, 20, 30
+Fila 92503: Falta todos los parciales excepto media maratón
+Fila 9685: Falta parcial 40
+Fila 10662: Falta parcial 20
+Fila 10808: Falta parcial 5
+Fila 11881: Falta parcial 20
+Fila 12089: Faltan todos
+Fila 12814: Falta el 25
+Fila 12951: Falta el 40
+Fila 12983: Falta media maraton
+Fila 13165: Falta parcial 40
+
+
+### Transformación de datos
+
+### Validación de rangos
+
+### Comprobación de calidad antes del análisis
 
 ## Análisis Univariante
 
@@ -128,6 +204,8 @@ rm(filas,columnas)
 ## Identificación de Patrones y Formulación de Preguntas
 
 <!-- Detección de tendencias, patrones interesantes y planteamiento de preguntas para análisis futuros. -->
+**Posibles preguntas:**
+Teniendo el ritmo medio en min/km por cada 5km, ver cuándo los atletas cambian ese ritmo(aumentan o disminuyen ritmo): deteccion de estrategias, deteccion de muro (y posibles recomendaciones de entrenamiento), diferencias entre un perfil de corredor y otro...
 
 ## Conclusiones
 

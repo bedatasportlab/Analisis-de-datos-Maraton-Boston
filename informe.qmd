@@ -168,10 +168,13 @@ resumen_tiempos_convertidos <- data.frame (
 resumen_tiempos_convertidos
 ```
 
+Gracias a la descripción estadística se ha comprobado que los datos de los tiempos y las edades son coherentes y se han podido observar qué parciales no tienen valores asociados. Cabe destacar que todos los deportistas que aparecen en el dataframe, aunque en algunos casos no estén registrados todos sus parciales, llevaron a término la prueba, ya que el total de valores faltantes que hay en la columna de tiempo oficial es 0.
+
 ## Limpieza de datos
 
 ### Datos faltantes
 
+En esta sección se busca identificar cuáles son los tiempos parciales que faltan para cada corredor.
 ```{r}
 #Filas con NA
 filas_con_na <- resultadosTokyo2025[ rowSums(is.na(resultadosTokyo2025[cols_tiempo])) > 0, ]
@@ -180,95 +183,141 @@ which(is.na(resultadosTokyo2025[cols_tiempo]), arr.ind = TRUE)
 #Filas con NA en cada columna
 filas_con_na <- resultadosTokyo2025[rowSums(is.na(resultadosTokyo2025[cols_tiempo])) > 0, ]
 head(filas_con_na, 20)
+
+filas_con_na <- as.data.frame(filas_con_na)
+str(filas_con_na)
 ```
 
-Hay 43 filas con columnas que contienen NA. Ahora hay que ver cuáles de esas columnas son las que tienen los NA para cada fila. O sea, ver para cada corredor, qué parcial le falta.
+Antes de seguir trabajando sobre el dataframe, es conveniente hacer una copia para trabajar sobre la copia sin tocar los datos originales por los erroes que pueda haber. 
 
 ```{r}
-texto_na <- "4377: parcial_5km, parcial_10km, parcial_15km, parcial_20km, medio_maraton, parcial_25km, parcial_30km, parcial_35km, parcial_40km
-4713: parcial_25km
-4909: parcial_15km, parcial_20km, parcial_30km
-92503: parcial_5km, parcial_10km, parcial_15km, parcial_20km, parcial_25km, parcial_30km, parcial_35km, parcial_40km
-9685: parcial_40km
-10662: parcial_20km
-10808: parcial_5km
-11881: parcial_20km
-12089: parcial_5km, parcial_10km, parcial_15km, parcial_20km, medio_maraton, parcial_25km, parcial_30km, parcial_35km, parcial_40km
-12814: parcial_25km
-12951: parcial_40km
-12983: medio_maraton
-13165: parcial_40km
-14445: parcial_15km
-14647: parcial_30km, parcial_35km, parcial_40km
-14783: parcial_10km, parcial_15km
-16263: parcial_15km
-17239: parcial_20km
-17945: parcial_25km
-18094: parcial_40km, parcial_35km
-19232: parcial_5km
-19838: parcial_25km
-19916: parcial_5km 
-21392: parcial_5km
-22564: parcial_5km, parcial_10km, parcial_15km, medio_maraton, parcial_25km
-22724: parcial_10km
-22734: parcial_25km
-23848: parcial_25km
-24137: parcial_20km
-24377: parcial_25km
-24562: parcial_5km
-26547: parcial_25km
-28195: parcial_40km
-29145: parcial_20km, parcial_15km
-29264: parcial_10km
-29552: parcial_30km
-30117: parcial_30km
-31818: parcial_5km
-32846: parcial_5km
-33580: parcial_30km
-34921: parcial_25km
-35127: parcial_25km
-36009: parcial_40km
-"
+df_trabajo <- resultadosTokyo2025
 ```
 ```{r}
-lineas <- strsplit(texto_na, "\n")[[1]] #separar el texto
-lineas <- trimws(lineas[lineas != ""]) #quita celdas vacías y espacios
+cols_tiempo <- c("parcial_5km", "parcial_10km", "parcial_15km", "parcial_20km", "medio_maraton", "parcial_25km", "parcial_30km", "parcial_35km", "parcial_40km")
 
-na_df <- data.frame(
-  fila = sub(":.*", "", lineas), #hasta los dos puntos es la fila
-  columnas = sub(".*:\\s*", "", lineas), #desde los dos puntos son las columnas
-  stringsAsFactors = FALSE
-)
+filas_con_na <- df_trabajo[rowSums(is.na(df_trabajo[, cols_tiempo])) > 0, ]
+filas_con_na$n_na <- rowSums(is.na(filas_con_na[, cols_tiempo]))
+
+head(filas_con_na[, c(cols_tiempo, "n_na")])
 ```
 
-Con esto ya se tiene un dataframe en el que aparecen las filas y al lado las correspondientes columnas donde se sitúan los valores NA.
+Habiendo identificado las filas con valores NA y la situacion de dichos valores en las columnas, se procede a valorar si a qué corredores se les va a estimar algún parcial o no. El criterio es el que aquí sigue:
 
-Ahora se procede a la clasificación de esas filas según si faltan más de tres parciales (y por tanto se debe descartar a ese corredor porque no se puede hacer ningún cálculo) o si solo faltan 3 o menos, lo que permitirá estimar el parcial e imputarlo en el dataframe resultadosTokyo2025.
+Si una fila tiene 2 o más parciales sin tiempo registrado consecutivos no se considerará imputable ya que la falta de tan solo dos valores faltantes consecutivos implica un desconocimiento del desarrollo de la prueba durante 15 kilómetros. Asumir un ritmo constante durante 15 kilómetros en una disciplina de duración tan larga como la maratón en atletas amateur (son los que tienen los parciales sin registrar) y en el tramo central de la carrera es irreal.
+
+De esta forma, solo se tendrían en cuenta para imputar aquellas filas cuyos parciales puedan calcularse con el tiempo inmediatamente anterior y/o posterior.
 
 ```{r}
-#NA por fila
-na_df$n_na <- sapply(na_df$columnas, function(x) {
-  length(trimws(unlist(strsplit(x, ","))))
+trabajo_df <- resultadosTokyo2025
+```
+```{r}
+filas_con_na$max_na_consec <- sapply(1:nrow(filas_con_na), function(i) {
+  elems <- unlist(filas_con_na[i, cols_tiempo])
+  na_vec <- is.na(elems)
+  if(all(!na_vec)) return(0)
+  max(rle(na_vec)$lengths[rle(na_vec)$values == TRUE])
 })
-
-# Clasificar filas
-na_df$clasificacion <- ifelse(
-  na_df$n_na > 3, "descartar",   # más de 3 NAs → descartar
-  "imputable"                    # 3 o menos NAs → se puede imputar
-)
-
-# Columna de descarte y filas a imputar
-na_df$descarte <- na_df$clasificacion == "descartar"
-filas_para_imputar <- na_df[na_df$descarte == FALSE, ]
 ```
 
-**Aquí me falta imputar**
+```{r}
+# Clasificar filas
+filas_con_na$clasificacion <- ifelse(
+  filas_con_na$max_na_consec >= 2,
+  "descartar",
+  "imputable"
+)
+# Columna de descarte y filas a imputar
+filas_con_na$descarte <- filas_con_na$clasificacion == "descartar"
+filas_para_imputar <- filas_con_na[filas_con_na$descarte == FALSE, ]
+```
+
+Recogidos los valores que pueden imputarse se procede a destacar 4 casos distintos según cuál sea el parcial desconocido:
+
+Si no está el parcial de 5km se debe tener en cuenta que el ritmo en el primer tramo de la maratón es en promedio un 5% más rápido que el ritmo de tramos posteriores.
+
+Si el kilómetro 40 es el faltante, al hacer los cálculos hay que considerar que desde el parcial 35 hay 5km de distancia pero para la llegada a la meta hay 2km y 195m.
+De igual manera, si no se sabe el tiempo de paso por la media maratón es preciso saber que desde el parcial del kilómetro 20 hay 1km y 96m de distancia y 3km 904m hasta el kilómetro 25.
+
+El cuarto caso es el de un parcial que pueda calcularse con el tiempo de paso inmediatamente anterior y posterior a él.
+
+```{r}
+trabajo_df <- resultadosTokyo2025
+```
+
+```{r}
+
+# Interpolacion parciales que no son extremos (parcial_5km o parcial_40km) ni medio_maraton
+
+library(hms)
+
+imputar_parciales <- function(tiempos, dist, cols_tiempo) {
+  # Asegurar que los tiempos son hms
+  if (!inherits(tiempos, "hms")) {
+    tiempos <- hms::as_hms(tiempos)
+  }
+
+  # Identificar la posición del medio maratón
+  idx_medio <- which(cols_tiempo == "medio_maraton")
+
+  for (i in seq_along(tiempos)) {
+    if (is.na(tiempos[i])) {
+
+      # --- Buscar el índice previo no NA ---
+      prev_idx <- max(which(!is.na(tiempos[1:(i - 1)])), na.rm = TRUE)
+      if (length(prev_idx) > 0 && is.finite(prev_idx) && prev_idx == idx_medio) {
+        prev_idx <- max(which(!is.na(tiempos[1:(prev_idx - 1)])), na.rm = TRUE)
+      }
+
+      # --- Buscar el índice posterior no NA ---
+      next_idx <- min(which(!is.na(tiempos[(i + 1):length(tiempos)])), na.rm = TRUE)
+      if (is.finite(next_idx)) next_idx <- next_idx + i
+      if (length(next_idx) > 0 && is.finite(next_idx) && next_idx == idx_medio) {
+        next_idx <- min(which(!is.na(tiempos[(idx_medio + 1):length(tiempos)])), na.rm = TRUE) + idx_medio
+      }
+
+      # --- Interpolación lineal estándar ---
+      if (is.finite(prev_idx) && is.finite(next_idx)) {
+        t_prev <- tiempos[prev_idx]
+        t_next <- tiempos[next_idx]
+        d_prev <- dist[prev_idx]
+        d_next <- dist[next_idx]
+        d_missing <- dist[i]
+
+        tiempos[i] <- t_prev + (t_next - t_prev) * ((d_missing - d_prev) / (d_next - d_prev))
+      }
+    }
+  }
+
+  return(tiempos)
+}
+```
+
+```{r}
+cols_tiempo <- c("parcial_5km", "parcial_10km", "parcial_15km", "parcial_20km", "medio_maraton", "parcial_25km", "parcial_30km", "parcial_35km", "parcial_40km") 
+
+dist <- c(5, 10, 15, 20, 21.0975, 25, 30, 35, 40)
+
+# Aplicar imputación por fila
+primera_imputacion <- as.data.frame(
+  t(apply(filas_para_imputar[cols_tiempo], 1, imputar_parciales,
+          dist = dist, cols_tiempo = cols_tiempo))
+)
+
+colnames(primera_imputacion) <- cols_tiempo
+
+# Mantener formato hms
+primera_imputacion[cols_tiempo] <-
+  lapply(primera_imputacion[cols_tiempo], hms::as_hms)
+```
+
+**Aqui está todo imputado menos parcial_5km, parcial_40 y medio_maraton está mal imputado**
 
 ### Valores únicos - datos duplicados
 
 ```{r}
 cols_para_duplicados <- c(cols_tiempo, "BIB")
-valores_unicos <- lapply(resultadosTokyo2025[cols_para_duplicados], unique)
+valores_unicos <- lapply(trabajo_df[cols_para_duplicados], unique)
 valores_unicos
 ```
 
@@ -277,7 +326,7 @@ valores_unicos
 n_unicos <- sapply(valores_unicos, length)
 
 # Número de filas total
-n_filas <- nrow(resultadosTokyo2025)
+n_filas <- nrow(trabajo_df)
 
 # Comprobar si hay duplicados
 for(col in names(n_unicos)){
@@ -289,11 +338,41 @@ for(col in names(n_unicos)){
 }
 ```
 
-En este apartado se ha comprobado que no hay ningún corredor duplicado y que en todos los parciales hay valores duplicados, lo que significa que se pueden identificar grupos de carrera según el ritmo.
+En este apartado se ha comprobado que no hay ningún corredor duplicado y que en todos los parciales hay pocos valores duplicados, lo que es coherente con el formato de carrera de una maratón. Es raro que haya grupos de carrera grandes en una disciplina de tan larga duración y con participantes de niveles tan dispares.
+
+```{r}
+# Crear un data frame vacío para guardar los duplicados
+duplicados_df <- data.frame(
+  columna = character(),
+  valor = character(),
+  frecuencia = integer(),
+  stringsAsFactors = FALSE
+)
+
+# Recorrer las columnas de tiempo
+for (col in cols_tiempo) {
+  freq <- table(trabajo_df[[col]])           # frecuencia de cada valor
+  duplicados <- freq[freq > 1]               # solo los que aparecen más de una vez
+  
+  if (length(duplicados) > 0) {
+    temp <- data.frame(
+      columna = col,
+      valor = names(duplicados),
+      frecuencia = as.integer(duplicados),
+      stringsAsFactors = FALSE
+    )
+    duplicados_df <- rbind(duplicados_df, temp)
+  }
+}
+
+# Mostrar el resultado
+duplicados_df
+
+```
 
 ```{r}
 for(col in cols_tiempo){
-  freq <- table(resultadosTokyo2025[[col]])  # cuenta cuántas veces aparece cada valor
+  freq <- table(trabajo_df[[col]])  # cuenta cuántas veces aparece cada valor
   duplicados <- freq[freq > 1]               # filtra solo los que aparecen más de una vez
   if(length(duplicados) > 0){
     cat("\nColumna:", col, "\n")
@@ -303,8 +382,6 @@ for(col in cols_tiempo){
   }
 }
 ```
-
-**Aquí me falta ver si merece la pena agrupar los tiempos para identificar los grupos de carrera**
 
 ### Transformación de datos
 

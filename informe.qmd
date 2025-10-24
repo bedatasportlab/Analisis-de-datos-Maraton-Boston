@@ -818,6 +818,34 @@ ggplot(df_seconds, aes(x = tiempo_oficial)) +
   
 ```
 
+En esta gráfica se observa que la distribución de los tiempos oficiales de los corredores es asimétrica positivamente (hacia la derecha). La mayoría de los corredores tienen tiempos comprendidos entre 3 horas y 30 minutos y 5 horas, con un pico alrededor de las 4 horas.
+
+A continuación se presentan los estadísticos de dispersión y forma de la distribución de tiempos oficiales.
+
+```{r}
+tiempo_disp_forma <- df_seconds %>%
+  summarise(
+    Minimo = as_hms(min(tiempo_oficial, na.rm = TRUE)),
+    Maximo = as_hms(max(tiempo_oficial, na.rm = TRUE)),
+    Rango = as_hms(max(tiempo_oficial, na.rm = TRUE) - min(tiempo_oficial, na.rm = TRUE)),
+    Varianza = round(var(tiempo_oficial, na.rm = TRUE), 2),
+    Desviación_Estandar = round(sd(tiempo_oficial, na.rm = TRUE), 2),
+    Coeficiente_Variacion = round((sd(tiempo_oficial, na.rm = TRUE) / mean(tiempo_oficial, na.rm = TRUE)) * 100, 2),
+    Asimetría = round(skewness(tiempo_oficial, na.rm = TRUE), 2),
+    Curtosis = round(kurtosis(tiempo_oficial, na.rm = TRUE), 2)
+  )
+
+datatable(
+  tiempo_disp_forma,
+  options = list(dom = 't'),
+  rownames = FALSE
+)
+```
+
+<!-- Interpretación de los resultados de los estadísticos de dispersión -->
+El rango de 4 horas, 56 minutos y 55 segundos indica una amplia variabilidad en los tiempos oficiales de los corredores. La desviación estándar de 3898.73	(~1 hora y 5 minutos) sugiere que los tiempos suelen oscilar alrededor de ±1 h de la media, lo que implica cierta variabilidad, pero no excesiva.. El coeficiente de variación del 23.77% indica que la variabilidad relativa de los tiempos oficiales es considerable.
+
+La asimetría positiva (0.15) indica que la distribución de los tiempos oficiales está ligeramente sesgada hacia la derecha, lo que significa que hay más corredores con tiempos superiores a la media. La curtosis (-0.87) indica que la distribución de los tiempos oficiales es más plana que una distribución normal, lo que sugiere que hay menos valores extremos en los tiempos oficiales de los corredores. 
 
 ### Tiempos Parciales
 

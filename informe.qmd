@@ -352,13 +352,13 @@ resultadosTokyo2025 <- df_trabajo
 
 ```{r}
 cols_para_duplicados <- c(cols_tiempo, "BIB")
-valores_unicos <- lapply(trabajo_df[cols_para_duplicados], unique)
+valores_unicos <- lapply(df_trabajo[cols_para_duplicados], unique)
 valores_unicos
 ```
 
 ```{r}
 n_unicos <- sapply(valores_unicos, length) #Valores únicos por columna
-n_filas <- nrow(trabajo_df) # Número de filas total
+n_filas <- nrow(df_trabajo) # Número de filas total
 
 for(col in names(n_unicos)){ # Comprobar si hay duplicados
   if(n_unicos[col] == n_filas){
@@ -379,7 +379,7 @@ duplicados_df <- data.frame( # Crear un data frame vacío para guardar los dupli
   stringsAsFactors = FALSE
 )
 for (col in cols_tiempo) { # Recorrer las columnas de tiempo
-  freq <- table(trabajo_df[[col]])           # frecuencia de cada valor
+  freq <- table(df_trabajo[[col]])           # frecuencia de cada valor
   duplicados <- freq[freq > 1]               # solo los que aparecen más de una vez
   
   if (length(duplicados) > 0) {
@@ -397,7 +397,7 @@ duplicados_df
 
 ```{r}
 for(col in cols_tiempo){
-  freq <- table(trabajo_df[[col]])  # cuenta cuántas veces aparece cada valor
+  freq <- table(df_trabajo[[col]])  # cuenta cuántas veces aparece cada valor
   duplicados <- freq[freq > 1]               # filtra solo los que aparecen más de una vez
   if(length(duplicados) > 0){
     cat("\nColumna:", col, "\n")
@@ -419,7 +419,7 @@ resultadosTokyo2025$n_na_fila <- rowSums(is.na(resultadosTokyo2025[cols_tiempo])
 head(resultadosTokyo2025[, c("BIB", "n_na_fila")])
 ```
 
-**¿¿Eliminamos las filas que se han quedado con NA después de la imputación??**
+Los corredores cuyos tiempos parciales que se han quedado sin imputar no se van a eliminar del dataframe para poder seguir contando con su tiempo final en el análisis de esa variable. Para el análisis univariante de los tiempos parciales solamente se obviarán esas filas (las filas descartadas para la imputación han sido 9).
 
 ```{r}
 cols_validar <- c("tiempo_oficial", cols_tiempo, "Edad")

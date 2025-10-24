@@ -32,6 +32,8 @@ library(knitr) # Para tablas bien formateadas
 library(viridis) # Paletas de color para los gráficos.
 library(plotly) # Para gráficas de mapas.
 library(gapminder) # Usaremos este paquete para la lista de países estándar
+library(patchwork) # para combinar gráficos ggplot2
+
 ```
 
 # Introducción
@@ -487,9 +489,9 @@ glimpse(df_seconds)
 
 Bajo este análisis se examinará cada variable del conjunto de datos para resumir su distribución, principales características y tendencias. Este tipo de análisis se centra en **una sola variable a la vez**, sin tener en cuenta su relación con otras, y permite obtener una primera descripción general de los datos. A continuación se revisa cada variable del dataset para observar sus principales características estadísticas.
 
-## Edad
+### Edad
 
-Esta variable indica la **edad** de los corredores que participaron en la maratón. Primero se examinán los principales estadísticos de centralización: media, moda y mediana
+Esta variable indica la **edad** de los corredores que participaron en la maratón. Se trata de una variable numérica discreta. Primero se examinán los principales estadísticos de centralización: media, moda y mediana
 
 ```{r}
 # Fun. moda que devuelve el valor más frecuente (si hay empates devuelve el primero)
@@ -503,11 +505,11 @@ moda <- function(x) {
 # Estadísticos resumidos (redondeados)
 edad_stats <- df_seconds %>%
   summarise(
-    n = sum(!is.na(Edad)),
-    n_missing = sum(is.na(Edad)),
-    media = round(mean(Edad, na.rm = TRUE), 2),
-    mediana = median(Edad, na.rm = TRUE),
-    moda = moda(Edad),
+    Total_valores = sum(!is.na(Edad)),
+    Valores_faltantes = sum(is.na(Edad)),
+    Media = round(mean(Edad, na.rm = TRUE), 2),
+    Mediana = median(Edad, na.rm = TRUE),
+    Moda = moda(Edad),
   )
 
 datatable(
@@ -518,31 +520,63 @@ datatable(
 
 ```
 
-Representado de forma gráfica, en la siguiente figura se observa un histograma con línea de densidad y los correspondientes valores de media, mediana y moda.
+<!-- Interpretación de los estadísticos de centralización -->
+La edad media de los corredores que participaron en la maratón de Tokyo 2025 es de aproximadamente 46 años, con una mediana de 47 años y una moda de 50 años. Esto indica que la distribución de edades está muy ligeramente sesgada hacia edades mayores, ya que la media es menor que la mediana. La moda sugiere que la edad más común entre los corredores es de 50 años, lo que podría indicar una mayor participación de corredores en este rango de edad.
+
+Representado de forma gráfica, en la siguiente figura se observa un histograma con línea de densidad.
 
 ```{r}
-
-# Valores para líneas en los gráficos
-mu <- edad_stats$media
-med <- edad_stats$mediana
-mod <- edad_stats$moda
-
-p_hist <- ggplot(df_seconds, aes(x = Edad)) +
-  geom_histogram(aes(y = ..density..), bins = 30, fill = "#90CAF9", color = "gray30") +
-  geom_density(fill = "#1976D2", alpha = 0.15) +
-  geom_vline(xintercept = mu, color = "#D32F2F", size = 1, linetype = "solid") +
-  geom_vline(xintercept = med, color = "#F9A825", size = 1, linetype = "dashed") +
-  geom_vline(xintercept = mod, color = "#2E7D32", size = 1, linetype = "dotdash") +
-  annotate("text", x = mu, y = Inf, label = paste0("Media: ", mu), vjust = 2.2, color = "#D32F2F", size = 3.5) +
-  annotate("text", x = med, y = Inf, label = paste0("Mediana: ", med), vjust = 3.8, color = "#F9A825", size = 3.5) +
-  annotate("text", x = mod, y = Inf, label = paste0("Moda: ", mod), vjust = 5.4, color = "#2E7D32", size = 3.5) +
-  labs(title = "Distribución de Edad (histograma + densidad)",
+ggplot(df_seconds, aes(x = Edad)) +
+  geom_histogram(aes(y = ..density..), binwidth=2, fill = "#90CAF9", color = "gray30") +
+  geom_density(aes(y = ..density..), 
+               fill = "#1976D2", alpha = 0.15) +
+  labs(title = "Distribución de Edad",
        x = "Edad (años)", y = "Densidad") +
   theme_minimal(base_size = 12)
-
-p_hist
 ```
 
+En esta gráfica se observa que la distribución de edades de los corredores es aproximadamente normal, con una ligera asimetría positiva (hacia la derecha). La mayoría de los corredores tienen edades comprendidas entre los 25 y 40 años, con un pico alrededor de los 30 años. La media, mediana y moda están bastante cercanas entre sí, lo que indica que la distribución es simétrica.
+
+A continuación se presentan los estadísticos de dispersión y forma de la distribución de edades.
+
+```{r}
+edad_disp_forma <- df_seconds %>%
+  summarise(
+    Minimo = min(Edad, na.rm = TRUE),
+    Maximo = max(Edad, na.rm = TRUE),
+    Rango = max(Edad, na.rm = TRUE) - min(Edad, na.rm = TRUE),
+    Varianza = round(var(Edad, na.rm = TRUE), 2),
+    Desviación_Estandar = round(sd(Edad, na.rm = TRUE), 2),
+    Desviacion_tipica = round(sqrt(var(Edad, na.rm = TRUE)), 2),
+    Coeficiente_Variacion = round((sd(Edad, na.rm = TRUE) / mean(Edad, na.rm = TRUE)) * 100, 2),
+    Asimetría = round(skewness(Edad, na.rm = TRUE), 2),
+    Curtosis = round(kurtosis(Edad, na.rm = TRUE), 2)
+  )
+
+datatable(
+  edad_disp_forma,
+  options = list(dom = 't'),
+  rownames = FALSE
+)
+
+```
+
+<!-- Interpretación de los resultados de los estadísticos de dispersión -->
+
+Las edades varían desde un mínimo de 18 años hasta un máximo de 84 años, con un rango total de 65 años. La varianza (122,64) y la desviación estándar (11,07) indican que hay una dispersión moderada en las edades de los corredores. El coeficiente de variación del 23,77% sugiere que la variabilidad relativa de las edades es considerable.
+
+La asimetría negativa (-0,06) indica que la distribución de edades es ligeramente sesgada hacia la izquierda, aunque está muy cerca de cero, lo que sugiere una distribución casi simétrica. La curtosis (-0,58) indica que la distribución de edades es ligeramente más plana que una distribución normal, lo que sugiere que hay menos valores extremos en las edades de los corredores.
+
+En la siguiente grafica se observa un boxplot que muestra la dispersión de las edades de los corredores.
+
+```{r}
+ggplot(df_seconds, aes(y = Edad)) +
+  geom_boxplot(fill = "#90CAF9", color = "gray30", outlier.color = "red", outlier.size = 1.5) +
+  labs(title = "Boxplot de Edad",
+       y = "Edad (años)") +
+  theme_minimal(base_size = 12)
+```
+El boxplot muestra que la mayoría de las edades de los corredores están concentradas entre aproximadamente 39 y 50 años, con algunos valores atípicos en ambos extremos. La mediana (línea dentro de la caja) está cerca del centro de la caja, lo que indica una distribución simétrica de las edades. Los bigotes del boxplot indican que no hay valores extremadamente alejados del rango intercuartílico, lo que sugiere una distribución relativamente homogénea de las edades.
 
 ## Género
 
@@ -731,6 +765,59 @@ fig
 En este mapa se pueden observar los países y su
 
 ### Tiempo Oficial
+
+En el caso de las variables de timepos, se realizará el análisis con las columnas transformadas a segundos pero reflejando los resultados en formato horas, minutos y segundos para una mejor interpretación. Esta transformación implica que la varible es numérica continua. Como en las variables anteriores, se comenzará con los estadísticos de centralización.
+
+```{r}
+
+# Estadísticos resumidos (redondeados)
+tiempo_stats <- df_seconds %>%
+  summarise(
+    Total_valores = sum(!is.na(tiempo_oficial)),
+    Valores_faltantes = sum(is.na(tiempo_oficial)),
+    Media = round(mean(tiempo_oficial, na.rm = TRUE), 2),
+    Mediana = median(tiempo_oficial, na.rm = TRUE),
+    Moda = moda(tiempo_oficial),
+  )
+
+# Convertir a hms para mejor interpretación
+tiempo_stats <- tiempo_stats %>%
+  mutate(
+    Media = as_hms(Media),
+    Mediana = as_hms(Mediana),
+    Moda = as_hms(Moda)
+  )
+
+datatable(
+  tiempo_stats,
+  options = list(dom = 't'),
+  rownames = FALSE
+)
+```
+
+<!-- Interpretación de los estadísticos de centralización -->
+La media del tiempo oficial de los corredores que participaron en la maratón de Tokyo 2025 es de aproximadamente 4 horas, 40 minutos y 23 segundos, con una mediana de 4 horas, 36 minutos y 13 segundos. Esto indica que la distribución de los tiempos está sesgada positivamente, ya que la media es mayor que la mediana, es decir, hay corredores con tiempos significativamente más altos que elevan la media. La moda sugiere que el tiempo más común entre los corredores es de 4 horas, 15 minutos y 30 segundos.
+
+Representado de forma gráfica, en la siguiente figura se observa un histograma con línea de densidad.
+
+```{r}
+
+# Convierte a hms para mejor interpretación
+
+ggplot(df_seconds, aes(x = tiempo_oficial)) +
+  geom_histogram(aes(y = ..density..), binwidth=500, fill = "#90CAF9", color = "gray30") +
+  geom_density(aes(y = ..density..), 
+               fill = "#1976D2", alpha = 0.15) +
+  scale_x_continuous(
+    breaks = seq(0, 21600, by = 3600), # cada 30 minutos
+    labels = function(x) as_hms(x)      # convierte a hms para etiquetas
+  ) +
+  labs(title = "Distribución del Tiempo Oficial",
+       x = "Tiempo Oficial (hh:mm:ss)", y = "Densidad") +
+  theme_minimal(base_size = 12)
+  
+```
+
 
 ### Tiempos Parciales
 

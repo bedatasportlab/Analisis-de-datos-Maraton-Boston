@@ -338,7 +338,6 @@ primera_imputacion[cols_tiempo] <- lapply(
 ```{r}
 df_trabajo[rownames(filas_para_imputar), cols_tiempo] <- primera_imputacion
 resultadosTokyo2025 <- df_trabajo
-print("Datos faltantes imputados")
 ```
 
 ### Valores únicos - datos duplicados

@@ -196,6 +196,8 @@ df_trabajo <- resultadosTokyo2025
 ```{r}
 cols_tiempo <- c("parcial_5km", "parcial_10km", "parcial_15km", "parcial_20km", "medio_maraton", "parcial_25km", "parcial_30km", "parcial_35km", "parcial_40km")
 
+dist <- c(5, 10, 15, 20, 21.0975, 25, 30, 35, 40)
+
 filas_con_na <- df_trabajo[rowSums(is.na(df_trabajo[, cols_tiempo])) > 0, ]
 filas_con_na$n_na <- rowSums(is.na(filas_con_na[, cols_tiempo]))
 
@@ -209,9 +211,6 @@ Si una fila tiene 2 o más parciales sin tiempo registrado consecutivos no se co
 De esta forma, solo se tendrían en cuenta para imputar aquellas filas cuyos parciales puedan calcularse con el tiempo inmediatamente anterior y/o posterior.
 
 ```{r}
-trabajo_df <- resultadosTokyo2025
-```
-```{r}
 filas_con_na$max_na_consec <- sapply(1:nrow(filas_con_na), function(i) {
   elems <- unlist(filas_con_na[i, cols_tiempo])
   na_vec <- is.na(elems)
@@ -221,13 +220,11 @@ filas_con_na$max_na_consec <- sapply(1:nrow(filas_con_na), function(i) {
 ```
 
 ```{r}
-# Clasificar filas
 filas_con_na$clasificacion <- ifelse(
   filas_con_na$max_na_consec >= 2,
   "descartar",
   "imputable"
 )
-# Columna de descarte y filas a imputar
 filas_con_na$descarte <- filas_con_na$clasificacion == "descartar"
 filas_para_imputar <- filas_con_na[filas_con_na$descarte == FALSE, ]
 ```
@@ -242,76 +239,107 @@ De igual manera, si no se sabe el tiempo de paso por la media maratón es precis
 El cuarto caso es el de un parcial que pueda calcularse con el tiempo de paso inmediatamente anterior y posterior a él.
 
 ```{r}
-trabajo_df <- resultadosTokyo2025
-```
-
-```{r}
-
-# Interpolacion parciales que no son extremos (parcial_5km o parcial_40km) ni medio_maraton
-
-library(hms)
-
 imputar_parciales <- function(tiempos, dist, cols_tiempo) {
-  # Asegurar que los tiempos son hms
-  if (!inherits(tiempos, "hms")) {
-    tiempos <- hms::as_hms(tiempos)
-  }
-
-  # Identificar la posición del medio maratón
+  if (!inherits(tiempos, "hms")) tiempos <- hms::as_hms(tiempos)
   idx_medio <- which(cols_tiempo == "medio_maraton")
-
+  
   for (i in seq_along(tiempos)) {
+    if (i == idx_medio) next
     if (is.na(tiempos[i])) {
-
-      # --- Buscar el índice previo no NA ---
+      
       prev_idx <- max(which(!is.na(tiempos[1:(i - 1)])), na.rm = TRUE)
-      if (length(prev_idx) > 0 && is.finite(prev_idx) && prev_idx == idx_medio) {
-        prev_idx <- max(which(!is.na(tiempos[1:(prev_idx - 1)])), na.rm = TRUE)
-      }
-
-      # --- Buscar el índice posterior no NA ---
       next_idx <- min(which(!is.na(tiempos[(i + 1):length(tiempos)])), na.rm = TRUE)
       if (is.finite(next_idx)) next_idx <- next_idx + i
-      if (length(next_idx) > 0 && is.finite(next_idx) && next_idx == idx_medio) {
-        next_idx <- min(which(!is.na(tiempos[(idx_medio + 1):length(tiempos)])), na.rm = TRUE) + idx_medio
-      }
-
-      # --- Interpolación lineal estándar ---
       if (is.finite(prev_idx) && is.finite(next_idx)) {
         t_prev <- tiempos[prev_idx]
         t_next <- tiempos[next_idx]
         d_prev <- dist[prev_idx]
         d_next <- dist[next_idx]
         d_missing <- dist[i]
-
-        tiempos[i] <- t_prev + (t_next - t_prev) * ((d_missing - d_prev) / (d_next - d_prev))
+        tiempos[i] <- t_prev + (t_next - t_prev) * ((d_missing - d_prev) / (d_next - d_prev)) #interpolación lineal estándar
       }
     }
   }
-
   return(tiempos)
 }
-```
-
-```{r}
-cols_tiempo <- c("parcial_5km", "parcial_10km", "parcial_15km", "parcial_20km", "medio_maraton", "parcial_25km", "parcial_30km", "parcial_35km", "parcial_40km") 
-
-dist <- c(5, 10, 15, 20, 21.0975, 25, 30, 35, 40)
-
-# Aplicar imputación por fila
 primera_imputacion <- as.data.frame(
-  t(apply(filas_para_imputar[cols_tiempo], 1, imputar_parciales,
-          dist = dist, cols_tiempo = cols_tiempo))
+  t(apply(filas_para_imputar[cols_tiempo], 1, imputar_parciales, dist = dist, cols_tiempo = cols_tiempo))
 )
-
 colnames(primera_imputacion) <- cols_tiempo
-
-# Mantener formato hms
 primera_imputacion[cols_tiempo] <-
   lapply(primera_imputacion[cols_tiempo], hms::as_hms)
 ```
 
-**Aqui está todo imputado menos parcial_5km, parcial_40 y medio_maraton está mal imputado**
+```{r}
+#Añadir a primera_imputacion la imputacion de medio_maraton
+
+idx_20 <- which(cols_tiempo == "parcial_20km")
+idx_media <- which(cols_tiempo == "medio_maraton")
+idx_25 <- which(cols_tiempo == "parcial_25km")
+
+filas_na <- which(is.na(primera_imputacion$medio_maraton))
+
+d_20 <- dist[idx_20]
+d_media <- dist[idx_media]
+d_25 <- dist[idx_25]
+
+primera_imputacion$medio_maraton[filas_na] <- hms::as_hms(
+  (primera_imputacion$parcial_20km[filas_na] * (d_25 - d_media) +
+     primera_imputacion$parcial_25km[filas_na] * (d_media - d_20)) / (d_25 - d_20)
+)
+```
+
+```{r}
+#Añadir a primera_imputacion la imputacion de parcial_5km
+
+idx_5 <- which(cols_tiempo == "parcial_5km")
+idx_10 <- which(cols_tiempo == "parcial_10km")
+
+filas_na_5 <- which(is.na(primera_imputacion$parcial_5km))
+
+d_5 <- dist[idx_5]
+d_10 <- dist[idx_10]
+
+factor_salida <- 0.95  # 5% más rápida
+
+primera_imputacion$parcial_5km[filas_na_5] <- hms::as_hms(
+  (primera_imputacion$parcial_10km[filas_na_5] - hms::as_hms(0)) * factor_salida * (d_5 / d_10)
+)
+```
+
+```{r}
+#Añadir a primera_imputacion la imputacion del parcial_40km
+
+idx_35 <- which(cols_tiempo == "parcial_35km")
+idx_40 <- which(cols_tiempo == "parcial_40km")
+d_35 <- dist[idx_35]
+d_40 <- dist[idx_40]
+
+filas_na_40 <- which(is.na(primera_imputacion$parcial_40km))
+primera_imputacion$parcial_40km[filas_na_40] <- hms::as_hms(
+  primera_imputacion$parcial_35km[filas_na_40] +
+    (primera_imputacion$parcial_35km[filas_na_40] - primera_imputacion$parcial_30km[filas_na_40]) *
+    ((d_40 - d_35) / (d_35 - dist[idx_35 - 1]))
+)
+```
+
+```{r}
+redondear_hms <- function(x) {
+  seg_total <- as.numeric(x)
+  seg_total_rounded <- round(seg_total)
+  hms::as_hms(seg_total_rounded)
+}
+primera_imputacion[cols_tiempo] <- lapply(
+  primera_imputacion[cols_tiempo],
+  redondear_hms
+)
+```
+
+```{r}
+df_trabajo[rownames(filas_para_imputar), cols_tiempo] <- primera_imputacion
+resultadosTokyo2025 <- df_trabajo
+print("Datos faltantes imputados")
+```
 
 ### Valores únicos - datos duplicados
 
@@ -322,14 +350,10 @@ valores_unicos
 ```
 
 ```{r}
-#Valores únicos por columna
-n_unicos <- sapply(valores_unicos, length)
+n_unicos <- sapply(valores_unicos, length) #Valores únicos por columna
+n_filas <- nrow(trabajo_df) # Número de filas total
 
-# Número de filas total
-n_filas <- nrow(trabajo_df)
-
-# Comprobar si hay duplicados
-for(col in names(n_unicos)){
+for(col in names(n_unicos)){ # Comprobar si hay duplicados
   if(n_unicos[col] == n_filas){
     message(paste("Columna", col, ": Ningún valor duplicado"))
   } else {
@@ -341,16 +365,13 @@ for(col in names(n_unicos)){
 En este apartado se ha comprobado que no hay ningún corredor duplicado y que en todos los parciales hay pocos valores duplicados, lo que es coherente con el formato de carrera de una maratón. Es raro que haya grupos de carrera grandes en una disciplina de tan larga duración y con participantes de niveles tan dispares.
 
 ```{r}
-# Crear un data frame vacío para guardar los duplicados
-duplicados_df <- data.frame(
+duplicados_df <- data.frame( # Crear un data frame vacío para guardar los duplicados
   columna = character(),
   valor = character(),
   frecuencia = integer(),
   stringsAsFactors = FALSE
 )
-
-# Recorrer las columnas de tiempo
-for (col in cols_tiempo) {
+for (col in cols_tiempo) { # Recorrer las columnas de tiempo
   freq <- table(trabajo_df[[col]])           # frecuencia de cada valor
   duplicados <- freq[freq > 1]               # solo los que aparecen más de una vez
   
@@ -364,10 +385,7 @@ for (col in cols_tiempo) {
     duplicados_df <- rbind(duplicados_df, temp)
   }
 }
-
-# Mostrar el resultado
 duplicados_df
-
 ```
 
 ```{r}
@@ -385,9 +403,33 @@ for(col in cols_tiempo){
 
 ### Transformación de datos
 
-### Validación de rangos
-
 ### Comprobación de calidad antes del análisis
+
+```{r}
+sapply(resultadosTokyo2025[cols_tiempo], function(x) sum(is.na(x)))
+
+resultadosTokyo2025$n_na_fila <- rowSums(is.na(resultadosTokyo2025[cols_tiempo]))
+head(resultadosTokyo2025[, c("BIB", "n_na_fila")])
+```
+
+**¿¿Eliminamos las filas que se han quedado con NA después de la imputación??**
+
+```{r}
+cols_validar <- c("tiempo_oficial", cols_tiempo, "Edad")
+
+resumen_calidad <- resultadosTokyo2025 %>%
+  select(all_of(cols_validar)) %>%
+  summarise(across(everything(), list(
+    Minimo = ~if(is.numeric(.)) min(., na.rm = TRUE) else as_hms(min(., na.rm = TRUE)),
+    Maximo = ~if(is.numeric(.)) max(., na.rm = TRUE) else as_hms(max(., na.rm = TRUE)),
+    Media  = ~if(is.numeric(.)) mean(., na.rm = TRUE) else as_hms(mean(as.numeric(.), na.rm = TRUE))
+  ), .names = "{.col}_{.fn}"))
+
+resumen_calidad_tidy <- t(resumen_calidad)
+colnames(resumen_calidad_tidy) <- "Valor"
+
+resumen_calidad_tidy
+```
 
 ## Análisis Univariante
 
@@ -486,9 +528,47 @@ p_hist
 <!-- Detección de tendencias, patrones interesantes y planteamiento de preguntas para análisis futuros. -->
 **Posibles preguntas:**
 
-1. Teniendo el ritmo medio en min/km por cada 5km, ver cuándo los atletas cambian ese ritmo(aumentan o disminuyen ritmo): deteccion de estrategias, deteccion de muro (y posibles recomendaciones de entrenamiento), diferencias entre un perfil de corredor y otro...
+*Conociendo el ritmo:*
 
-2. En el caso de poder hacer grupos de carrera si hay los suficientes valores duplicados, se puede ver cómo evolucionan esos grupos, ver qué gente se cae del grupo - teniendo los min/km o cualquier otra medida de velocidad se puede ver qué ritmo son capaces de aguantar los corredores y sacar porcentajes, por ejemplo 3% de atletas aguantaron el ritmo 4'11"/km hasta el final. Si además da tiempo a comparar con otras maratones se pueden comparar porcentajes y dar una explicación por tipo de campeonato o por condiciones de la maratón. *DARLE MÁS DE UNA VUELTA A ESTO*. 
+1. ¿En qué momento o momentos hay un cambio notable en el ritmo de los atletas?
+
+2. ¿Hay algún cambio que sea común a todos los atletas independientemente del nivel?
+  Puede indicar irregularidad del terreno, cambio en los elementos ambientales, presencia de público...
+
+3. ¿Qué estrategia de carrera indica ese cambio de ritmo? 
+  (Positiva (disminuye el tiempo según avanza la carrera)/negativa(aumenta el tiempo)/even pace(igual)/parabólica(primeros y últimos km más rápidos que los centrales))
+
+4. ¿Qué factores psicofisiológicos están detrás de los cambios de ritmo?
+
+5. ¿Se pueden identificar perfiles de corredores según cuándo se cambie el ritmo? ¿Según la estrategia que se utilice?
+
+6. ¿Qué relación hay entre la estrategia (variación o no del ritmo en los parciales) y el tiempo final? 
+  ¿Qué estrategias se repiten más en los mejores y peores tiempos finales?
+
+7. ¿Qué relación hay entre los procesos piscofisiológicos y la estrategia de carrera?
+
+9. ¿Qué relación hay entre los facotres ambientales y la estrategia? Crear perfil de maratón.
+
+10. En un mismo recorrido y para un atleta del mismo nivel, ¿la estrategia puede ser distinta según el tipo de competición que sea? (Major, campeonato del mundo, JJOO...)
+
+11. ¿Hay relación entre el sexo y la estrategia? ¿A qué podría deberse?
+
+*La carrera en números:*
+
+1. ¿Cuántos atletas bajaron de 2h10? ¿2h30? ¿3h00?
+
+2. ¿Qué porcentaje de atletas llevó x ritmo?
+
+3. ¿A cuánto tiempo y porcentaje de tiempo se quedaron los mejores tiempos masculino y femenino del récord del mundo?
+
+4. ¿Qué nacionalidad tuvo el mejor rendimiento?
+
+5. ¿Alguna marca entra en el top10 histórico?
+
+6. ¿Cuál ha sido el lapso de tiempo al entrar en meta entre los tres primeros?
+
+7. ¿Cuántos atletas olímpicos/internacionales han participado?
+
 
 ## Conclusiones
 

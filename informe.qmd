@@ -17,15 +17,21 @@ abstract: "MODIFICAR."
 # Importación de librerías. 
 
 ```{r}
+#| warning: false
+
 # Importación de todas las librerías usadas durante el informe y breve descripcion
 library(readr) # Libreria para poder importar los datos desde un csv.
 library(ggplot2) # Libreria para poder hacer gráficos.
 library(DT) # Libreria para poder visualizar dataframes en qmd de manera interactiva.
 library(hms) # Libreria para poder tratar datos referentes a horas, minutos y segundos.
 library(dplyr) # Libreria para poder manipular dataframes.
-library(ggplot2) # Libreria para poder hacer gráficos.
 library(tidyr) # Libreria para poder transformar dataframes.
 library(e1071) # para skewness() y kurtosis()
+library(stringr) # Para la limpieza de nombres del Dataframe.
+library(knitr) # Para tablas bien formateadas
+library(viridis) # Paletas de color para los gráficos.
+library(plotly) # Para gráficas de mapas.
+library(gapminder) # Usaremos este paquete para la lista de países estándar
 ```
 
 # Introducción
@@ -312,9 +318,38 @@ for(col in cols_tiempo){
 
 ### Comprobación de calidad antes del análisis
 
-## Análisis Univariante
+# Análisis Univariante
 
-DF TEMPORAL PARA EMPEZAR SECCION
+En esta sección se realizará un análisis descriptivo completo de cada una de las variables del conjunto de datos por separado.
+
+## DF temporal (borrar cuando esté lista la parte de Limpieza de Datos)
+
+```{r}
+resultadosTokyo2025 <- read_csv(
+  "data/Maraton_Tokyo/marathon_tokyo_results_2025.csv",
+  col_types = cols(
+    BIB = col_integer(),
+    Nombre = col_character(),
+    Nacionalidad = col_character(),
+    Genero = col_character(),
+    Edad = col_integer(),
+    tiempo_oficial = col_time(format = "%H:%M:%S"),
+    parcial_5km = col_time(format = "%H:%M:%S"),
+    parcial_10km = col_time(format = "%H:%M:%S"),
+    parcial_15km = col_time(format = "%H:%M:%S"),
+    parcial_20km = col_time(format = "%H:%M:%S"),
+    medio_maraton = col_time(format = "%H:%M:%S"),
+    parcial_25km = col_time(format = "%H:%M:%S"),
+    parcial_30km = col_time(format = "%H:%M:%S"),
+    parcial_35km = col_time(format = "%H:%M:%S"),
+    parcial_40km = col_time(format = "%H:%M:%S")
+  ),
+  quote = "\""
+)
+
+# Transformacion a formato dataframe.
+resultadosTokyo2025 <- as.data.frame(resultadosTokyo2025)
+```
 
 ```{r}
 df_seconds <- resultadosTokyo2025 %>%
@@ -333,7 +368,7 @@ glimpse(df_seconds)
 
 Bajo este análisis se examinará cada variable del conjunto de datos para resumir su distribución, principales características y tendencias. Este tipo de análisis se centra en **una sola variable a la vez**, sin tener en cuenta su relación con otras, y permite obtener una primera descripción general de los datos. A continuación se revisa cada variable del dataset para observar sus principales características estadísticas.
 
-### Edad
+## Edad
 
 Esta variable indica la **edad** de los corredores que participaron en la maratón. Primero se examinán los principales estadísticos de centralización: media, moda y mediana
 
@@ -390,9 +425,191 @@ p_hist
 ```
 
 
-### Género
+## Género
 
-### Nacionalidad
+### LIMPIEZA DE LA VARIABLE GENERO (ESTO VA EN LA PARTE I CUANDO ESTÉ LISTA)
+
+Debido a que los datos han sido extraídos de una web japonesa, los valores de la variable *Genero* presentan un formato bilingüe, con caracteres tanto japoneses como ingleses, separados por el caracter */*. Para facilitar posteriores análisis y visualizaciones, se ha tomado la decisión de unificar esta variable a un único idioma, en este caso, el inglés. Una vez limpia, la convertimos a **factor**. Para ello: 
+
+```{r}
+resultadosTokyo2025 <- resultadosTokyo2025 %>%
+  mutate(
+    # Modificamos la columna 'Género'
+    Genero = str_remove(Genero, "^.*／")
+  )
+
+resultadosTokyo2025$Genero <- as.factor(resultadosTokyo2025$Genero)
+```
+
+### Análisis Univariante(eliminar esta sub-subsección cuando la anterior pase a la parte I)
+
+En esta sección se realiza un análisis descriptivo de la variable *Genero*. Para ello, vamos a comenzar inspeccionando las categorías de la variable y sus frecuencias, tanto absoluta (número de corredores) como relativa (porcentaje del total). 
+
+```{r}
+tabla_frecuencias_genero <- resultadosTokyo2025 %>%
+  count(Genero, name = "Frecuencia_Absoluta") %>%
+  mutate(
+    Porcentaje = Frecuencia_Absoluta / sum(Frecuencia_Absoluta) * 100
+  ) %>%
+  arrange(desc(Frecuencia_Absoluta))
+
+
+kable(
+  tabla_frecuencias_genero,
+  col.names = c("Género", "Nº de Corredores", "Porcentaje (%)"),
+  digits = c(0, 0, 2),
+  caption = "Tabla: Distribución de participantes por género."
+)
+```
+
+Se puede observar que existen 3 categorías con la siguiente participación: 
+
+- **Men**: 
+- **Women**
+- **Non-Binary**
+
+A continuación vamos a graficar la información obtenida en la tabla de frecuencia a través de un gráfico de barras. 
+
+```{r}
+ggplot(tabla_frecuencias_genero, aes(x = reorder(Genero, -Frecuencia_Absoluta), y = Frecuencia_Absoluta, fill = Genero)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  geom_text(
+    aes(label = scales::comma(Frecuencia_Absoluta)), 
+    vjust = -0.5, 
+    size = 3.5,
+    color = "black" 
+  ) +
+  
+  scale_fill_viridis_d() + 
+  
+  # Títulos, subtítulos y etiquetas de los ejes
+  labs(
+    title = "Distribución de Participantes por Género",
+    subtitle = "Maratón de Tokyo | 02-03-2025",
+    x = "Género",
+    y = "Número de Corredores"
+  ) +
+  
+  # Tema limpio y ajuste de eje para dar espacio a las etiquetas
+  theme_minimal(base_size = 14) + # Aumenté un poco el tamaño base de la letra
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18), # Título en negrita y más grande
+    plot.subtitle = element_text(size = 12, color = "gray30") # Subtítulo más sutil
+  )
+```
+
+Por lo tanto podemos observar que la composición de la maratón muestra que casi **tres de cada cuatro corredores eran hombres**. 
+
+```{r}
+rm(tabla_frecuencias_genero)
+```
+
+## Nacionalidad
+
+### Limpieza de la variable Nacionalidad. (poner luego en la parte correspondiente)
+
+Para realizar la limpieza de la variable nacionalidad, veamos primero en una tabla los posibles valores que toma: 
+
+```{r}
+
+conteo_paises <- resultadosTokyo2025 %>%
+   count(Nacionalidad, sort = TRUE, name = "Numero_Corredores")
+
+# Lo visualizamos con la libreria DT porque es más interactiva a la hora de generar el documento qmd. Arreglar
+datatable(
+  conteo_paises,
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+  rownames = FALSE, # Mantiene la eliminación del número de fila
+  colnames = c("País", "Número de Corredores")
+)
+```
+
+Se peude observar que no existen países con el nombre duplicado (es decir, varios nombres para el mismo país). Aunque existen algunos paises que, si se quisiera hacer un análisis posterior con los nombres de las nacionalidades (para crear mapas por ejemplo), deberían modificar su nombre a un formato estándar en inglés. Además, podemos observar que hay algunos corredores con el país "-", estos deberían convertirse en valores NA. Puesto que son corredores sin ningún tipo de país asociado.
+
+Para ello, vamos a crear una nueva variable en nuestro conjunto de datos que se relacione con el país con el nombre ya estandarizado, *Pais_Estandarizado*. 
+
+```{r}
+
+resultadosTokyo2025 <- resultadosTokyo2025 %>%
+  mutate(
+    # Primero, manejamos el caso del guion para que no interfiera
+    Nacionalidad = na_if(Nacionalidad, "-"),
+    
+    # Ahora, creamos la nueva columna estandarizada
+    Pais_Estandarizado = case_when(
+      Nacionalidad == "日本" ~ "Japan",
+      Nacionalidad == "PR OF CHINA" ~ "China",
+      Nacionalidad == "CHINESE TAIPEI" ~ "Taiwan",
+      Nacionalidad == "GREAT BRITAIN & N.I." ~ "United Kingdom",
+      Nacionalidad == "HONG KONG, CHINA" ~ "Hong Kong",
+      Nacionalidad == "KOREA" ~ "Korea, South",
+      Nacionalidad == "DPR OF KOREA" ~ "Korea, North",
+      Nacionalidad == "F Y REP. OF MACEDONIA" ~ "Macedonia",
+      Nacionalidad == "SLOVAK REPUBLIC" ~ "Slovakia",
+      Nacionalidad == "ISLAMIC REPUBLIC OF IRAN" ~ "Iran",
+      Nacionalidad == "MACAO" ~ "Macau",
+      Nacionalidad == "SAINT KITTS AND NEVIS" ~ "Saint Kitts and Nevis",
+      Nacionalidad == "BAHAMAS" ~ "Bahamas, The",
+      Nacionalidad == "REPUBLIC Of YEMEN" ~ "Yemen",
+      Nacionalidad == "UNITED STATES" ~ "United States", # Usar el nombre completo suele ser más compatible
+      
+      # Para todos los demás países los ponemos en el formato minúsculas con la primera letra en mayúsculas.
+      TRUE ~ str_to_title(Nacionalidad)
+    )
+  )
+
+conteo_paises_limpios <- resultadosTokyo2025 %>%
+  count(Pais_Estandarizado, sort = TRUE)
+
+```
+
+Observamos que, en principio, los errores están completamente corregidos. Para ver si los nuevos nombres estandarizados están correctamente, vamos a cruzar los países recién creados con...
+
+```{r}
+df <- read.csv("https://raw.githubusercontent.com/plotly/datasets/master/2014_world_gdp_with_codes.csv")
+
+paises_validos <- df %>%
+  distinct(COUNTRY) %>%
+  # Renombramos la columna para que coincida con la nuestra y poder hacer el join
+  rename(Pais_Estandarizado = COUNTRY)
+
+
+paises_problematicos <- resultadosTokyo2025 %>%
+  filter(!is.na(Pais_Estandarizado)) %>% # Ignoramos los NA que puedan existir
+  distinct(Pais_Estandarizado) %>%
+  anti_join(paises_validos, by = "Pais_Estandarizado")
+
+```
+
+
+Una vez realizado, creamos una nueva variable llamada *CODE_PLOTLY* que contendrá el código de cada país según este dataframe subido: 
+
+```{r}
+
+resultadosTokyo2025 <- resultadosTokyo2025 %>%
+  left_join(
+    df %>% select(COUNTRY, CODE),  
+    by = c("Pais_Estandarizado" = "COUNTRY")  
+  )
+
+```
+
+### Análisis Univariante (eliminar esta sub-subsección cuando la anterior pase a la parte I)
+
+```{r}
+
+frecuencia_paises <- resultadosTokyo2025 %>%
+  count(Pais_Estandarizado, CODE, name = "corredores", sort = TRUE)
+
+fig <- plot_ly(frecuencia_paises, type='choropleth', locations=frecuencia_paises$CODE, z=frecuencia_paises$corredores, text=frecuencia_paises$COUNTRY, colorscale="Blues")
+
+fig
+```
+
+En este mapa se pueden observar los países y su
 
 ### Tiempo Oficial
 

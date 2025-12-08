@@ -1813,8 +1813,6 @@ Otro hecho llamativo es el desplazamiento hacia la derecha de la **distribución
 
 2. ¿Hay algún cambio que sea común a todos los atletas independientemente del nivel? Esto puede indicar irregularidad del terreno, cambio en los elementos ambientales, mayor o menor presencia de público, entre otros factores externos.
 
-3. ¿Qué factores psicofisiológicos están detrás de los cambios de ritmo? Esto permitiría plantear las planificaciones de entrenamiento teniendo en cuenta el punto crítico en que el organismo se encuentra en condiciones especialmente hostiles.
-
 # Conclusiones
 
 Con el **análisis univariante** se han podido extraer datos referentes a la **participación**: 

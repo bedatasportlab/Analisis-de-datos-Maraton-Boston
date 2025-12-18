@@ -43,6 +43,9 @@ library(tidyr)
 library(knitr)
 library(kableExtra)
 library(DT)
+library(gam)
+library(corrplot)
+library(mgcv)
 ```
 
 # Análisis de Componentes Principales
@@ -808,9 +811,226 @@ Como se ha visto con los valores de las componentes principales y en las gráfic
 
 Sin embargo, si se observa que en todos los clusters el porcentaje de tiempo aumenta a partir del segmento 20-25, momento de la carrera que coincide con el "muro". La diferencia de magnitud en el cambio de ritmo sugiere que los que menos afectados se ven son los que han llevado una estrategia uniforme muy estable. Este resultado sea posiblemente fruto del nivel de entrenamiento de estos atletas y de una mejor dosificación (mejor eficiencia energética).
 
-A continuación, a partir de las variables originales, las variables derivadas, la PCA y el clustering, se exploran varios modelos que van a permitir predecir información de interés para el rendimiento deportivo.
+A continuación, a partir de las variables originales, las variables derivadas, la PCA y el clustering, se exploran varios modelos que van a permitir afinar la explicación del resultado en la maratón, así como predecir información de interés para el rendimiento deportivo.
 
-# Modelo de regresión lineal 
+# Selección de variables
+
+Para poder crear un modelo útil para la realidad deportiva, se deben seleccionar aquellas variables que expliquen la mayor parte de la varianza.
+
+## Preparar los datasets para el modelado
+
+En primer lugar se juntan los DataFrames *elite* y *clustering_dirigido*, donde se encuentran todas las variables, desde las originales hasta las creadas durante el EDA, el PCA y el clustering. 
+
+```{r}
+# Seleccionar solo las columnas que necesitamos de clustering
+cols_nuevas_clustering <- c("cluster_final", "PC1", "PC2") # ejemplo
+
+df_modelo <- elite %>%
+  left_join(
+    clustering_dirigido %>% dplyr::select(Nombre, all_of(cols_nuevas_clustering)),
+    by = "Nombre"
+  )
+
+# Convertir categóricas a factor
+df_modelo <- df_modelo %>%
+  mutate(
+    cluster_final = as.factor(cluster_final),
+    Genero = as.factor(Genero)
+  )
+
+# Variables numéricas estándar
+df_modelo_std <- df_modelo %>%
+  mutate(across(where(is.numeric), scale, .names = "{.col}_z"))
+```
+
+## Variables numéricas y categóricas
+
+A continuación, se calcula la matriz de correlación para las variables numéricas para descartar aquellas que estén altamente correlacionadas:
+
+```{r}
+# Numéricas
+num_vars <- df_modelo %>% dplyr::select(where(is.numeric))
+matriz_cor <- cor(num_vars, use = "pairwise.complete.obs")
+kable(matriz_cor, digits = 2, caption = "Matriz de correlaciones")
+```
+
+```{r}
+num_vars <- df_modelo %>% 
+  dplyr::select(where(is.numeric))
+
+cor_mat <- cor(num_vars, use = "pairwise.complete.obs")
+
+corrplot(
+  cor_mat,
+  method = "color",
+  type = "upper",
+  tl.cex = 0.6,
+  number.cex = 0.5
+)
+```
+
+El posterior modelo de regreisón lineal intentará estudiar cuánto cambia el tiempo oficial del atleta en función de las variables explicativas. Una alta correlación de las variables explicativas (parciales) y la variable objetivo (tiempo oficial) implica que unas dependen mucho de otras, resultando imposible modificar una y manteneniendo constantes las demás. Por ello, para el modelo de regresión lineal en el que se explican los factores que más influyen en el tiempo final, se incluirán las que tienen menos correlación con el mismo, las PC y la edad.
+
+```{r}
+# Categóricas
+anova(lm(tiempo_oficial ~ cluster_final, data = df_modelo))
+anova(lm(tiempo_oficial ~ Genero, data = df_modelo))
+```
+
+Genero explica mucha variabilidad y el cluster no, porque la estrategia modula el resultado final pero no lo explica por si mismo.
+
+# Modelo de Regresión Lineal 
+
+## Explicativo
+
+Se ven qué variables afectan más al tiempo final.
+
+```{r}
+modelo_lm <- lm(
+  tiempo_oficial ~ PC1_z + PC2_z + Edad_z + cluster_final + Genero,
+  data = df_modelo_std
+)
+summary(modelo_lm)
+
+par(mfrow = c(2, 2))  # Para poner las 4 gráficas estándar en una ventana
+plot(modelo_lm)
+```
+
+La edad y el género, las PC y el cluster modulan el resultado pero no lo definen. Dos atletas pueden tener estrategias idénticas y rendimientos muy diferentes, o dos estrategias distintas y rendimientos parecidos.
+
+## GAM
+
+Como la edad puede no ser lineal, se hace GAM.
+
+```{r}
+gam_null <- gam(tiempo_oficial ~ 1, data=df_modelo)
+
+gam(
+  tiempo_oficial ~ 
+    s(Edad) +
+    s(PC1) +
+    s(PC2) +
+    cluster_final +
+    Genero,
+  data = df_modelo, select=TRUE
+)
+
+#plot(gam_model, select = 1, shade = TRUE)
+```
+
+## Predictivo
+
+Aqui se toman las variables a partir de las cuales se quiere predecir el tiempo final, no importa que en el apartado de selección de variables se observara una alta correlación.
+
+```{r}
+m1 <- lm(tiempo_oficial ~ medio_maraton, data=df_modelo)
+m2 <- lm(tiempo_oficial ~ medio_maraton + Edad + Genero, data=df_modelo)
+m3 <- lm(tiempo_oficial ~ medio_maraton + Edad + Genero + cluster_final, data=df_modelo)
+
+anova(m1, m2, m3)
+```
+
+```{r}
+modelo_pred_base <- lm(
+  tiempo_oficial ~ medio_maraton + Edad + Genero,
+  data = df_modelo
+)
+
+summary(modelo_pred_base)
+```
+
+```{r}
+df_modelo$tiempo_predicho <- predict(modelo_pred, newdata = df_modelo)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(df_modelo, aes(x = tiempo_predicho, y = tiempo_oficial)) +
+  geom_point(alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Tiempo esperado (predicho)",
+    y = "Tiempo real (oficial)",
+    title = "Tiempo esperado vs tiempo real"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(df_modelo, aes(
+  x = tiempo_predicho,
+  y = tiempo_oficial,
+  color = cluster_final
+)) +
+  geom_point(alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  labs(
+    x = "Tiempo esperado",
+    y = "Tiempo real",
+    color = "Estrategia (cluster)",
+    title = "Esperado vs real por estrategia de carrera"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+df_modelo <- df_modelo %>%
+  mutate(
+    error_pred = tiempo_oficial - tiempo_predicho
+  )
+```
+
+```{r}
+ggplot(df_modelo, aes(x = cluster_final, y = error_pred)) +
+  geom_boxplot() +
+  labs(
+    x = "Cluster",
+    y = "Error (real - esperado)",
+    title = "Desviación respecto al tiempo esperado por estrategia"
+  ) +
+  theme_minimal()
+```
+
+## GAM
+
+```{r}
+library(mgcv)
+
+gam_pred <- gam(
+  tiempo_oficial ~ 
+    s(medio_maraton) +
+    s(Edad) +
+    Genero,
+  data = df_modelo
+)
+
+summary(gam_pred)
+plot(gam_pred, pages = 1, shade = TRUE)
+```
+
+## Validación
+
+```{r}
+set.seed(123)
+idx <- sample(seq_len(nrow(df_modelo)), size = 0.7*nrow(df_modelo))
+
+train <- df_modelo[idx, ]
+test  <- df_modelo[-idx, ]
+
+mod_train <- lm(
+  tiempo_oficial ~ medio_maraton + Edad + Genero,
+  data = train
+)
+
+pred <- predict(mod_train, newdata = test)
+
+RMSE <- sqrt(mean((test$tiempo_oficial - pred)^2))
+RMSE
+```
+
+
+
 
 Para predecir el tiempo de la maratón:
 
@@ -832,6 +1052,19 @@ modelo_parcial_hasta_mm <- lm(tiempo_oficial ~ parcial_5km + parcial_10km + parc
                data = resultadosTokyo2025)
 
 summary(modelo_parcial_hasta_mm)
+```
+
+```{r}
+names(resultadosTokyo2025)
+
+modelo_parcial_hasta_mm <- lm(tiempo_oficial ~  parcial_15km + parcial_20km + estrategia, medio_maraton,
+               data = resultadosTokyo2025)
+
+summary(modelo_parcial_hasta_mm)
+```
+
+```{r}
+unique(resultadosTokyo2025$categoria)
 ```
 
 ```{r}

@@ -180,7 +180,7 @@ cat("La variable Edad tiene los siguientes valores distintos: ", unique(resultad
 cat("La variable nacionalidad toma los siguientes valores: ", unique(resultadosTokyo2025$Nacionalidad))
 ```
 
-De este resumen s puede resaltar que: 
+De este resumen se puede resaltar que: 
 
 - Existen 35916 nombres únicos en el conjunto de datos, pero 36173 corredores, habrá que analizar **posibles duplicados**.
 - En los parciales, existen **datos faltantes NA**. 
@@ -238,7 +238,7 @@ resultadosTokyo2025 <- resultadosTokyo2025 %>% mutate(Nombre = na_if(Nombre, "**
 
 ```
 
-Una vez identificados los datos nulos ocultos de la variable *Nombre*, se va a proseguir con la variable *Nacionalidad*, como bien se ha detectado en @sec-deteccion-problemas, esta variable toma valores "-" que corresponden a corredores a los que les falta el dato de la nacionalidad. Es una buena práctica modificar este valor para tener identificados los datos nulos correspondientes a esta variable: 
+Una vez identificados los datos nulos ocultos de la variable *Nombre*, se va a proseguir con la variable *Nacionalidad* que, como bien se ha detectado en @sec-deteccion-problemas, toma valores "-" que corresponden a corredores a los que les falta el dato de la nacionalidad. Es una buena práctica modificar este valor para tener identificados los datos nulos correspondientes a esta variable: 
 
 ```{r}
 resultadosTokyo2025<- resultadosTokyo2025 %>% mutate(Nacionalidad = na_if(Nacionalidad, "-"))
@@ -267,7 +267,7 @@ dim(inconsistentes_parciales)
 
 ```
 
-El filtrado recibe 0 filas que cumplan que un parcial posterior tenga menor tiempo acumulado que uno anterior, por lo tanto no existen valores atípicos lógicos sobre estas variables. 
+El filtrado recibe 0 filas que cumplan que un parcial posterior tenga menor tiempo acumulado que uno anterior, por lo tanto **no existen valores atípicos** lógicos sobre estas variables. 
 
 ```{r}
 rm(inconsistentes_parciales)
@@ -314,7 +314,7 @@ datatable(
 )
 ```
 
-Antes de seguir trabajando sobre el dataframe, es conveniente hacer una copia para trabajar sobre la copia sin tocar los datos originales por los erroes que pueda haber. 
+Antes de seguir trabajando sobre el dataframe, realizamos una copia de trabajo del mismo:
 
 ```{r}
 df_trabajo <- resultadosTokyo2025
@@ -328,17 +328,15 @@ filas_con_na$n_na <- rowSums(is.na(filas_con_na[, cols_tiempo]))
 unique(filas_con_na$n_na)
 ```
 
-Por lo que se puede observar, el número de parciales faltantes puede ser 1, 2, 3, 5, 8 ó 9. Para finalizar el estudio de la forma de los valores nulos y faltantes del conjunto de datos, se va a visualizar, de todas estas filas, el número de parciales faltantes **consecutivos**, ya que será de vital importancia para el posterior desarrollo del análisis. 
+Por lo que se puede observar, el número de parciales faltantes puede ser 1, 2, 3, 5, 8 ó 9. Para finalizar el estudio sobre la forma que tienen estos valores nulos y faltantes del conjunto de datos, se va a visualizar, de todas estas filas, el número de parciales faltantes **consecutivos**, ya que será de vital importancia para el posterior desarrollo del análisis. 
 
 ```{r}
-
 filas_con_na$max_na_consec <- sapply(1:nrow(filas_con_na), function(i) {
   elems <- unlist(filas_con_na[i, cols_tiempo])
   na_vec <- is.na(elems)
   if(all(!na_vec)) return(0)
   max(rle(na_vec)$lengths[rle(na_vec)$values == TRUE])
 })
-
 unique(filas_con_na$max_na_consec)
 ```
 
@@ -352,7 +350,7 @@ En esta sección se realizará la correspondiente limpieza y correción de datos
 
 Se va a realizar el correspondiente tratamiento de los **valores nulos**, tal y como se ha adelantado en la sección @sec-valores-nulos, los datos faltantes correspondientes a las variables de *Nombre* y *Nacionalidad* ni se imputarán ni se eliminarán dichas filas. 
 
-Respecto a la estrategia para los parciales, cabe destacar que ninguno de las filas corresponde a abandonos o descalificaciones ya que sí que existe su tiempo final al paso por la meta. Se ha decidido tratar los datos nulos de la siguiente manera: 
+Respecto a la estrategia para los parciales, cabe destacar que ninguna de las filas corresponde a abandonos o descalificaciones, ya que sí que existe su tiempo final al paso por la meta. Se ha decidido tratar los datos nulos de la siguiente manera: 
 
 - Si una fila tiene 2 o más parciales sin tiempo registrado consecutivos, no se considerará imputable debido a que supone un desconocimiento de 15 kilómetros. Asumir un ritmo constante durante 15 kilómetros en una disciplina de duración tan larga como la maratón en atletas amateur (son los que tienen parciales sin registrar) es irreal.
 
@@ -430,7 +428,7 @@ primera_imputacion[cols_tiempo] <-
   lapply(primera_imputacion[cols_tiempo], hms::as_hms)
 ```
 
-Tras la imputación correcta de los parciales intermedios, añado la imputación de aquellos valores faltantes a los **5km**, que se realizará calculando el ritmo medio estimando con el parcial de los 10km, y multiplicándolo por un factor salida de un 95%, es decir, que el tiempo de paso por los 5km es un 5% más rápido. Para ello: 
+Tras la imputación correcta de los parciales intermedios, se procede a la imputación de valores faltantes a los **5km**, que se realizará calculando el ritmo medio estimando con el parcial de los 10km, y multiplicándolo por un factor salida de un 95%, es decir, que el tiempo de paso por los 5km es un 5% más rápido. Para ello: 
 
 ```{r}
 #Añadir a primera_imputacion la imputacion de parcial_5km
@@ -537,7 +535,7 @@ resultadosTokyo2025 <- resultadosTokyo2025 %>%
 
 ### Códigos de Nacionalidad {#sec-estandarizar-nacionalidad}
 
-Con el objetivo de poder definir de manera estándar y acorde a códigos para poder graficar más adelante países, se ha decidido estandarizar la variable *Nacionalidad*, ya que se puede observar cómo contiene carácteres especiales japonenes o incluso regiones cuyo nombre de país es distinto, es por ello que se visualizan primeramente los nombres:
+Con el objetivo de poder definir de manera estándar y acorde a códigos para poder graficar más adelante países, se ha decidido estandarizar la variable *Nacionalidad*, ya que se puede observar cómo contiene caracteres especiales japonenes o incluso regiones cuyo nombre de país es distinto, es por ello que se visualizan primeramente los nombres:
 
 ```{r}
 conteo_paises <- resultadosTokyo2025 %>%
@@ -1433,7 +1431,9 @@ ggplot(resultadosTokyo2025, aes(x = Genero, y = Edad, fill = Genero)) +
 
 Se observa que la mediana de edad es similar entre hombres y mujeres, aunque los hombres parecen tener una mayor variabilidad en sus edades. Los corredores no binarios tienen una mediana de edad más baja, pero nuevamente, el número de datos es muy limitado para hacer una interpretación sólida.
 
-```{r}
+```r
+
+
   # ---- Función auxiliar para formatear segundos a "HH:MM" ----
 sec_to_hhmm <- function(x) {
   # x en segundos; usamos POSIXct con origin para formatear a HH:MM
@@ -1653,7 +1653,7 @@ La proporción más alta de atletas que optaron por una estrategia negativa (rec
 ## Cálculo del Tokyo Performance Index (TPI)
 
 En la actual sección se va a calcular el **Tokyo Performance Index (TPI)**, un sistema de puntuación diseñado para evaluar el rendimiento individual de los corredores en la Maratón de Tokio 2025 mediante una medida relativa a los mejores registros conocidos.  
-Este índice se construye a partir del **tiempo oficial final** de cada participante y de un **tiempo de referencia**, en este caso el **récord mundial** vigente.
+Este índice se construye a partir del **tiempo oficial final** de cada participante y de un **tiempo de referencia**, en este caso el **récord del Maratón de Tokyo** vigente.
 
 La fórmula utilizada tiene carácter **exponencial**, de forma que la puntuación máxima (1000 puntos) se asigna al corredor cuyo tiempo coincide con el de referencia, y el resto de participantes obtiene valores decrecientes en función de su desviación relativa.  
 Concretamente, el índice se define como:
@@ -1664,21 +1664,34 @@ $$
 
 donde:  
 - \( T \) representa el tiempo oficial del corredor (en segundos),  
-- \( T_{ref} \) el tiempo de referencia (récord o mejor marca), y  
+- \( T_{ref} \) el tiempo de referencia. Récord mundial de maratón según género (en segundos)
 - \( k \) un parámetro de ajuste que controla la penalización de los tiempos más lentos.  
+
+
+### Cálculo del parámetro k
+
+Para determinar el valor adecuado del parámetro \( k \), se ha considerado que, un tiempo de 7 horas debería recibir aproximadamente 10 puntos. 
+
+Por lo tanto, el valor de k se calcula despejando en la fórmula del TPI:
+
+$$
+10 = 1000 \times e^{-k \cdot \frac{7 - T_{ref}}{T_{ref}}}
+$$
+
+Por lo tanto, para el récord masculino (2:02:16), el valor de k es 1.9 aproximadamente. Usaremos el valor de k=2 para redondear.
 
 De este modo, el TPI permite **normalizar los resultados** y **comparar rendimientos** entre corredores de distinto sexo y edad, eliminando el efecto del tiempo absoluto y centrándose en la proximidad al rendimiento máximo posible.
 
 ```{r}
 # Récords mundiales de maratón
-# Hombre: 2:00:35 (Kelvin Kiptum)
-# Mujer: 2:09:56 (Ruth Chepngetich) 
+# Hombre: 2:02:16 (Kelvin Kiptum)
+# Mujer: 2:15:55 (Ruth Chepngetich) 
 
-record_men <- 2*3600 + 0*60 + 35    # en segundos: 2h 00m 35s  
-record_women <- 2*3600 + 9*60 + 56  # en segundos: 2h 09m 56s  
+record_men <- 2*3600 + 2*60 + 16     
+record_women <- 2*3600 + 15*60 + 55
 
 # Parámetro de penalización
-k <- 5  
+k <- 2 
 
 # Calcular TPI en el data frame
 resultadosTokyo2025 <- resultadosTokyo2025 %>%
@@ -1798,7 +1811,6 @@ top3_corredores <- resultadosTokyo2025 %>%
 
 kable(top3_corredores)
 ```
-
 
 # Identificación de Patrones y Formulación de Preguntas
 

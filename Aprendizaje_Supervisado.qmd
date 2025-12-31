@@ -1,0 +1,835 @@
+---
+title: "Aprendizaje Supervisado. La Maratón de Tokyo 2025."
+author:
+  - "Alba Martínez de la Hermosa"
+  - "Alonso González Romero"
+  - "Daniel López Paredes"
+date: "2025-11-16"
+format: 
+  html:
+    css: style.css
+    title-block-banner: true
+    embed-resources: true
+    self-contained: true
+toc: true
+toc-depth: 2
+number-sections: true
+lang: es
+keywords: ["maratón", "análisis de datos", "Tokyo"]
+abstract: "Este documento presenta un análisis de aprendizaje supervisado basado en modelos de regresión lineal múltiple para predecir el tiempo final de una maratón de forma progresiva, utilizando datos de parciales acumulados y características del corredor."
+execute: 
+  warning: false
+---
+
+# Importación de librerías y datos
+
+```{r}
+#| label: carga-librerias
+#| include: false
+
+# Importo el df de resultadosTokyo tras el EDA realizado:
+resultadosTokyo2025 <- readRDS("resultadosTokyo2025.rds")
+
+# Importo las librerías necesarias:
+source("librerias.R")
+```
+
+# Preprocesamiento de los datos
+
+En esta sección se preparan los datos para el modelado. Se calculan los tiempos de cada segmento de 5 km (segmentos parciales), que representan el tiempo empleado únicamente en ese tramo específico de la carrera.
+
+```{r}
+#| label: preprocesamiento
+
+# Calcular segmentos: tiempo empleado en cada tramo de 5 km
+df <- resultadosTokyo2025 %>%
+  mutate(
+    seg_0_5 = parcial_5km,
+    seg_5_10 = parcial_10km - parcial_5km,
+    seg_10_15 = parcial_15km - parcial_10km,
+    seg_15_20 = parcial_20km - parcial_15km,
+    seg_20_25 = parcial_25km - parcial_20km,
+    seg_25_30 = parcial_30km - parcial_25km,
+    seg_30_35 = parcial_35km - parcial_30km,
+    seg_35_40 = parcial_40km - parcial_35km,
+    seg_40_meta = tiempo_oficial - parcial_40km
+  )
+```
+
+Una vez añadidos los parciales, podemos proceder a la división de los datos en conjuntos de entrenamiento, validación y prueba.
+
+# División de datos: Train, Validation y Test
+
+Se dividen los datos en tres conjuntos:
+- **Train (70%)**: Para entrenar los modelos
+- **Validation (15%)**: Para validar y ajustar parámetros
+- **Test (15%)**: Para evaluación final del modelo
+
+```{r}
+#| label: division-datos
+
+set.seed(6455)  # Para reproducibilidad
+
+# Crear índices para la división
+n <- nrow(df)
+train_idx <- sample(1:n, size = floor(0.70 * n))
+remaining_idx <- setdiff(1:n, train_idx)
+validation_idx <- sample(remaining_idx, size = floor(0.15 * n))
+test_idx <- setdiff(remaining_idx, validation_idx)
+
+# Crear los conjuntos
+train_data <- df[train_idx, ]
+validation_data <- df[validation_idx, ]
+test_data <- df[test_idx, ]
+
+# Verificar tamaños
+cat("Tamaño Train:", nrow(train_data), "\n")
+cat("Tamaño Validation:", nrow(validation_data), "\n")
+cat("Tamaño Test:", nrow(test_data), "\n")
+cat("Total:", nrow(train_data) + nrow(validation_data) + nrow(test_data), "\n")
+```
+
+
+# Predicción Progresiva de Tiempos Finales
+
+En esta sección se construyen modelos de regresión lineal múltiple para predecir el tiempo final de la maratón de forma progresiva. Para cada punto de control (parcial), se ajusta un modelo utilizando la información disponible hasta ese momento de la carrera.
+
+**Criterio de evaluación**: Una predicción se considera acertada si el tiempo final predicho está dentro de un margen de ±2 minutos respecto al tiempo oficial real.
+
+## Etapa 1: Predicción en 5 km
+
+En esta primera etapa, se utiliza la información disponible en el km 5 para predecir el tiempo final.
+
+**Variables disponibles**: `Edad`, `Genero`, `categoria`, `parcial_5km`, `seg_0_5`
+
+```{r}
+#| label: modelo-5km
+
+# Recogemos todas las variables disponibles en el km 5
+variables_5km <- c("Edad", "Genero", "categoria", "parcial_5km", "seg_0_5")
+
+# Ajustar modelo de regresión lineal múltiple full
+modelo_5km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + seg_0_5, 
+                 data = train_data)
+
+# Ajustamos el modelo usando selección stepwise
+modelo_step_5km <- stepAIC(modelo_5km_full, direction = "both", trace = FALSE)
+
+# vemos qué variables ha seleccionado el modelo stepwise
+cat("Variables seleccionadas automáticamente:\n")
+print(formula(modelo_step_5km))
+
+# 4. Resumen del modelo
+summary(modelo_step_5km)
+
+# 5. Predicciones usando el modelo optimizado
+pred_5km <- predict(modelo_step_5km, newdata = train_data)
+
+# 6. Evaluar aciertos (Igual que antes)
+aciertos_5km <- abs(train_data$tiempo_oficial - pred_5km) <= 120
+tasa_acierto_5km <- mean(aciertos_5km) * 100
+
+# 7. Imprimir Resultados
+cat("\n=== RESULTADOS ETAPA 5 KM ===\n")
+cat("Tasa de acierto (±2 min):", round(tasa_acierto_5km, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_5km)^2)), 2), "segundos\n")                 
+```
+
+**Variables seleccionadas para el modelo de 5 km:**
+
+
+**Interpretación del modelo:**
+
+
+
+**Análisis de resultados:**
+
+
+
+## Etapa 2: Predicción en 10 km
+
+**Variables disponibles**: `Edad`, `Genero`, `categoria`, `parcial_5km`, `parcial_10km`, `seg_0_5`, `seg_5_10`
+
+```{r}
+#| label: modelo-10km
+
+# Selección de variables para el modelo en 10 km
+modelo_10km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+                    seg_0_5 + seg_5_10, 
+                  data = train_data)
+
+
+
+# Ajustamos el modelo usando selección stepwise
+modelo_step_10km <- stepAIC(modelo_10km_full, direction = "both", trace = FALSE)
+
+# vemos qué variables ha seleccionado el modelo stepwise
+cat("Variables seleccionadas automáticamente:\n")
+print(formula(modelo_step_10km))
+
+# 4. Resumen del modelo
+summary(modelo_step_10km)
+
+# 5. Predicciones usando el modelo optimizado
+pred_10km <- predict(modelo_step_10km, newdata = train_data)
+
+# 6. Evaluar aciertos (Igual que antes)
+aciertos_10km <- abs(train_data$tiempo_oficial - pred_10km) <= 120
+tasa_acierto_10km <- mean(aciertos_10km) * 100
+
+# 7. Imprimir Resultados
+cat("\n=== RESULTADOS ETAPA 5 KM ===\n")
+cat("Tasa de acierto (±2 min):", round(tasa_acierto_10km, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_10km)^2)), 2), "segundos\n") 
+```
+
+**Variables seleccionadas para el modelo de 10 km:**
+
+**Interpretación del modelo:**
+
+
+**Análisis de resultados:**
+
+
+## Etapa 3: Predicción en 15 km
+
+**Variables disponibles**: `Edad`, `Genero`, `categoria`, `parcial_5km`, `parcial_10km`, `parcial_15km`, `seg_0_5`, `seg_5_10`, `seg_10_15`
+
+```{r}
+#| label: modelo-15km
+
+# Modelo en 15 km
+modelo_15km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+                    parcial_15km + seg_0_5 + seg_5_10 + seg_10_15, 
+                  data = train_data)
+
+summary(modelo_15km)
+
+# Evaluación
+pred_15km <- predict(modelo_15km, newdata = test_data)
+aciertos_15km <- abs(test_data$tiempo_oficial - pred_15km) <= 120
+tasa_acierto_15km <- mean(aciertos_15km) * 100
+
+cat("\n=== RESULTADOS ETAPA 15 KM ===\n")
+cat("Tasa de acierto (±2 min):", round(tasa_acierto_15km, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_15km)^2)), 2), "segundos\n")
+```
+
+**Variables seleccionadas para el modelo de 15 km:**
+
+<!-- Explica las variables incluidas -->
+
+**Interpretación del modelo:**
+
+<!-- Análisis del modelo -->
+
+**Análisis de resultados:**
+
+<!-- Comentarios sobre la mejora en la predicción -->
+
+## Etapa 4: Predicción en 20 km (Media Maratón)
+
+**Variables disponibles**: `Edad`, `Genero`, `categoria`, parciales acumulados hasta 20 km, segmentos hasta 20 km
+
+```{r}
+#| label: modelo-20km
+
+# Modelo en 20 km
+modelo_20km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+                    parcial_15km + parcial_20km + seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20, 
+                  data = train_data)
+
+summary(modelo_20km)
+
+# Evaluación
+pred_20km <- predict(modelo_20km, newdata = test_data)
+aciertos_20km <- abs(test_data$tiempo_oficial - pred_20km) <= 120
+tasa_acierto_20km <- mean(aciertos_20km) * 100
+
+cat("\n=== RESULTADOS ETAPA 20 KM (MEDIA MARATÓN) ===\n")
+cat("Tasa de acierto (±2 min):", round(tasa_acierto_20km, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_20km)^2)), 2), "segundos\n")
+```
+
+**Variables seleccionadas para el modelo de 20 km:**
+
+<!-- Explica las variables incluidas -->
+
+**Interpretación del modelo:**
+
+<!-- Análisis del modelo en el punto de media maratón -->
+
+**Análisis de resultados:**
+
+<!-- Importancia de la media maratón como punto de referencia -->
+
+## Etapa 5: Predicción en 25 km
+
+**Variables disponibles**: `Edad`, `Genero`, `categoria`, parciales acumulados hasta 25 km, segmentos hasta 25 km
+
+```{r}
+#| label: modelo-25km
+
+# Modelo en 25 km
+modelo_25km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+                    parcial_15km + parcial_20km + parcial_25km + 
+                    seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + seg_20_25, 
+                  data = train_data)
+
+summary(modelo_25km)
+
+# Evaluación
+pred_25km <- predict(modelo_25km, newdata = test_data)
+aciertos_25km <- abs(test_data$tiempo_oficial - pred_25km) <= 120
+tasa_acierto_25km <- mean(aciertos_25km) * 100
+
+cat("\n=== RESULTADOS ETAPA 25 KM ===\n")
+cat("Tasa de acierto (±2 min):", round(tasa_acierto_25km, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_25km)^2)), 2), "segundos\n")
+```
+
+**Variables seleccionadas para el modelo de 25 km:**
+
+<!-- Explica las variables incluidas -->
+
+**Interpretación del modelo:**
+
+<!-- Análisis del modelo -->
+
+**Análisis de resultados:**
+
+<!-- Comentarios sobre la predicción tras pasar la media maratón -->
+
+## Etapa 6: Predicción en 30 km
+
+**Variables disponibles**: `Edad`, `Genero`, `categoria`, parciales acumulados hasta 30 km, segmentos hasta 30 km
+
+```{r}
+#| label: modelo-30km
+
+# Modelo en 30 km
+modelo_30km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+                    parcial_15km + parcial_20km + parcial_25km + parcial_30km + 
+                    seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + seg_20_25 + seg_25_30, 
+                  data = train_data)
+
+summary(modelo_30km)
+
+# Evaluación
+pred_30km <- predict(modelo_30km, newdata = test_data)
+aciertos_30km <- abs(test_data$tiempo_oficial - pred_30km) <= 120
+tasa_acierto_30km <- mean(aciertos_30km) * 100
+
+cat("\n=== RESULTADOS ETAPA 30 KM ===\n")
+cat("Tasa de acierto (±2 min):", round(tasa_acierto_30km, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_30km)^2)), 2), "segundos\n")
+```
+
+**Variables seleccionadas para el modelo de 30 km:**
+
+<!-- Explica las variables incluidas -->
+
+**Interpretación del modelo:**
+
+<!-- Análisis del modelo en el km 30, punto crítico de la maratón -->
+
+**Análisis de resultados:**
+
+<!-- Comentarios sobre la predicción en este punto crítico -->
+
+## Etapa 7: Predicción en 35 km
+
+**Variables disponibles**: `Edad`, `Genero`, `categoria`, parciales acumulados hasta 35 km, segmentos hasta 35 km
+
+```{r}
+#| label: modelo-35km
+
+# Modelo en 35 km
+modelo_35km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+                    parcial_15km + parcial_20km + parcial_25km + parcial_30km + parcial_35km + 
+                    seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + seg_20_25 + seg_25_30 + seg_30_35, 
+                  data = train_data)
+
+summary(modelo_35km)
+
+# Evaluación
+pred_35km <- predict(modelo_35km, newdata = test_data)
+aciertos_35km <- abs(test_data$tiempo_oficial - pred_35km) <= 120
+tasa_acierto_35km <- mean(aciertos_35km) * 100
+
+cat("\n=== RESULTADOS ETAPA 35 KM ===\n")
+cat("Tasa de acierto (±2 min):", round(tasa_acierto_35km, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_35km)^2)), 2), "segundos\n")
+```
+
+**Variables seleccionadas para el modelo de 35 km:**
+
+<!-- Explica las variables incluidas -->
+
+**Interpretación del modelo:**
+
+<!-- Análisis del modelo -->
+
+**Análisis de resultados:**
+
+<!-- Comentarios sobre la precisión con la mayoría de la carrera completada -->
+
+## Etapa 8: Predicción en 40 km
+
+**Variables disponibles**: `Edad`, `Genero`, `categoria`, parciales acumulados hasta 40 km, segmentos hasta 40 km
+
+```{r}
+#| label: modelo-40km
+
+# Modelo en 40 km (última etapa)
+modelo_40km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+                    parcial_15km + parcial_20km + parcial_25km + parcial_30km + parcial_35km + 
+                    parcial_40km + seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + seg_20_25 + 
+                    seg_25_30 + seg_30_35 + seg_35_40, 
+                  data = train_data)
+
+summary(modelo_40km)
+
+# Evaluación
+pred_40km <- predict(modelo_40km, newdata = test_data)
+aciertos_40km <- abs(test_data$tiempo_oficial - pred_40km) <= 120
+tasa_acierto_40km <- mean(aciertos_40km) * 100
+
+cat("\n=== RESULTADOS ETAPA 40 KM ===\n")
+cat("Tasa de acierto (±2 min):", round(tasa_acierto_40km, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_40km)^2)), 2), "segundos\n")
+```
+
+**Variables seleccionadas para el modelo de 40 km:**
+
+<!-- Explica las variables incluidas -->
+
+**Interpretación del modelo:**
+
+<!-- Análisis del modelo final -->
+
+**Análisis de resultados:**
+
+<!-- Comentarios sobre la predicción final, a falta de solo 2.195 km -->
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------------------
+# Selección de variables (previo)
+
+Para poder crear un modelo útil para la realidad deportiva, se deben seleccionar aquellas variables que expliquen la mayor parte de la varianza.
+
+## Preparar los datasets para el modelado
+
+En primer lugar se juntan los DataFrames *elite* y *clustering_dirigido*, donde se encuentran todas las variables, desde las originales hasta las creadas durante el EDA, el PCA y el clustering. 
+
+```{r}
+# Seleccionar solo las columnas que necesitamos de clustering
+cols_nuevas_clustering <- c("cluster_final", "PC1", "PC2") # ejemplo
+
+df_modelo <- elite %>%
+  left_join(
+    clustering_dirigido %>% dplyr::select(Nombre, all_of(cols_nuevas_clustering)),
+    by = "Nombre"
+  )
+
+# Convertir categóricas a factor
+df_modelo <- df_modelo %>%
+  mutate(
+    cluster_final = as.factor(cluster_final),
+    Genero = as.factor(Genero)
+  )
+
+# Variables numéricas estándar
+df_modelo_std <- df_modelo %>%
+  mutate(across(where(is.numeric), scale, .names = "{.col}_z"))
+```
+
+## Variables numéricas y categóricas
+
+A continuación, se calcula la matriz de correlación para las variables numéricas para descartar aquellas que estén altamente correlacionadas:
+
+```{r}
+# Numéricas
+num_vars <- df_modelo %>% dplyr::select(where(is.numeric))
+matriz_cor <- cor(num_vars, use = "pairwise.complete.obs")
+kable(matriz_cor, digits = 2, caption = "Matriz de correlaciones")
+```
+
+```{r}
+num_vars <- df_modelo %>% 
+  dplyr::select(where(is.numeric))
+
+cor_mat <- cor(num_vars, use = "pairwise.complete.obs")
+
+corrplot(
+  cor_mat,
+  method = "color",
+  type = "upper",
+  tl.cex = 0.6,
+  number.cex = 0.5
+)
+```
+
+El posterior modelo de regreisón lineal intentará estudiar cuánto cambia el tiempo oficial del atleta en función de las variables explicativas. Una alta correlación de las variables explicativas (parciales) y la variable objetivo (tiempo oficial) implica que unas dependen mucho de otras, resultando imposible modificar una y manteneniendo constantes las demás. Por ello, para el modelo de regresión lineal en el que se explican los factores que más influyen en el tiempo final, se incluirán las que tienen menos correlación con el mismo, las PC y la edad.
+
+```{r}
+# Categóricas
+anova(lm(tiempo_oficial ~ cluster_final, data = df_modelo))
+anova(lm(tiempo_oficial ~ Genero, data = df_modelo))
+```
+
+Genero explica mucha variabilidad y el cluster no, porque la estrategia modula el resultado final pero no lo explica por si mismo.
+
+# Modelo de Regresión Lineal 
+
+## Explicativo
+
+Se ven qué variables afectan más al tiempo final.
+
+```{r}
+modelo_lm <- lm(
+  tiempo_oficial ~ PC1_z + PC2_z + Edad_z + cluster_final + Genero,
+  data = df_modelo_std
+)
+summary(modelo_lm)
+
+par(mfrow = c(2, 2))  # Para poner las 4 gráficas estándar en una ventana
+plot(modelo_lm)
+```
+
+La edad y el género, las PC y el cluster modulan el resultado pero no lo definen. Dos atletas pueden tener estrategias idénticas y rendimientos muy diferentes, o dos estrategias distintas y rendimientos parecidos.
+
+## GAM
+
+Como la edad puede no ser lineal, se hace GAM.
+
+```{r}
+gam_null <- gam(tiempo_oficial ~ 1, data=df_modelo)
+
+gam(
+  tiempo_oficial ~ 
+    s(Edad) +
+    s(PC1) +
+    s(PC2) +
+    cluster_final +
+    Genero,
+  data = df_modelo, select=TRUE
+)
+
+#plot(gam_model, select = 1, shade = TRUE)
+```
+
+## Predictivo
+
+Aqui se toman las variables a partir de las cuales se quiere predecir el tiempo final, no importa que en el apartado de selección de variables se observara una alta correlación.
+
+```{r}
+m1 <- lm(tiempo_oficial ~ medio_maraton, data=df_modelo)
+m2 <- lm(tiempo_oficial ~ medio_maraton + Edad + Genero, data=df_modelo)
+m3 <- lm(tiempo_oficial ~ medio_maraton + Edad + Genero + cluster_final, data=df_modelo)
+
+anova(m1, m2, m3)
+```
+
+```{r}
+modelo_pred_base <- lm(
+  tiempo_oficial ~ medio_maraton + Edad + Genero,
+  data = df_modelo
+)
+
+summary(modelo_pred_base)
+```
+
+```{r}
+df_modelo$tiempo_predicho <- predict(modelo_pred, newdata = df_modelo)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(df_modelo, aes(x = tiempo_predicho, y = tiempo_oficial)) +
+  geom_point(alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Tiempo esperado (predicho)",
+    y = "Tiempo real (oficial)",
+    title = "Tiempo esperado vs tiempo real"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(df_modelo, aes(
+  x = tiempo_predicho,
+  y = tiempo_oficial,
+  color = cluster_final
+)) +
+  geom_point(alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  labs(
+    x = "Tiempo esperado",
+    y = "Tiempo real",
+    color = "Estrategia (cluster)",
+    title = "Esperado vs real por estrategia de carrera"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+df_modelo <- df_modelo %>%
+  mutate(
+    error_pred = tiempo_oficial - tiempo_predicho
+  )
+```
+
+```{r}
+ggplot(df_modelo, aes(x = cluster_final, y = error_pred)) +
+  geom_boxplot() +
+  labs(
+    x = "Cluster",
+    y = "Error (real - esperado)",
+    title = "Desviación respecto al tiempo esperado por estrategia"
+  ) +
+  theme_minimal()
+```
+
+## GAM
+
+```{r}
+library(mgcv)
+
+gam_pred <- gam(
+  tiempo_oficial ~ 
+    s(medio_maraton) +
+    s(Edad) +
+    Genero,
+  data = df_modelo
+)
+
+summary(gam_pred)
+plot(gam_pred, pages = 1, shade = TRUE)
+```
+
+## Validación
+
+```{r}
+set.seed(123)
+idx <- sample(seq_len(nrow(df_modelo)), size = 0.7*nrow(df_modelo))
+
+train <- df_modelo[idx, ]
+test  <- df_modelo[-idx, ]
+
+mod_train <- lm(
+  tiempo_oficial ~ medio_maraton + Edad + Genero,
+  data = train
+)
+
+pred <- predict(mod_train, newdata = test)
+
+RMSE <- sqrt(mean((test$tiempo_oficial - pred)^2))
+RMSE
+```
+
+
+
+
+Para predecir el tiempo de la maratón:
+
+1) con los parciales hasta la media maratón
+2) con los tiempos desde la media maratón
+3) con los parciales hasta la media maratón teniendo en cuenta la edad
+4) con los parciales desde la media maratón teniendo en cuenta la edad
+5) con los parciales hasta la media maratón teniendo en cuenta el género
+6) con los parciales desde la media maratón teniendo en cuenta el género
+7) con los parciales hasta la media maratón teniendo en cuenta el cluster
+8) con los parciales desde la media maratón teniendo en cuenta el cluster
+9) teniéndolo todo en cuenta
+10) Puntos que conseguirá en el TPI
+
+```{r}
+names(resultadosTokyo2025)
+
+modelo_parcial_hasta_mm <- lm(tiempo_oficial ~ parcial_5km + parcial_10km + parcial_15km + parcial_20km, medio_maraton,
+               data = resultadosTokyo2025)
+
+summary(modelo_parcial_hasta_mm)
+```
+
+```{r}
+names(resultadosTokyo2025)
+
+modelo_parcial_hasta_mm <- lm(tiempo_oficial ~  parcial_15km + parcial_20km + estrategia, medio_maraton,
+               data = resultadosTokyo2025)
+
+summary(modelo_parcial_hasta_mm)
+```
+
+```{r}
+unique(resultadosTokyo2025$categoria)
+```
+
+```{r}
+par(mfrow = c(2, 2))   # 4 gráficos en una misma ventana
+plot(modelo_parcial_hasta_mm)
+par(mfrow = c(1, 1))
+```
+
+```{r}
+pred <- predict(modelo_parcial_hasta_mm)
+
+plot(resultadosTokyo2025$tiempo_oficial, pred,
+     xlab = "Tiempo real",
+     ylab = "Tiempo predicho",
+     main = "Predicción vs Real - modelo_parcial_hasta_mm")
+
+abline(0, 1, col="red", lwd=2)  # línea ideal
+```
+
+```{r}
+library(ggplot2)
+
+resultadosTokyo2025$pred <- predict(modelo_parcial_hasta_mm)
+
+ggplot(resultadosTokyo2025, aes(x = pred, y = tiempo_oficial)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red") +
+  labs(title = "Predicciones vs valores reales - Modelo A",
+       x = "Tiempo predicho",
+       y = "Tiempo real") +
+  theme_minimal()
+```
+
+# Modelo de Regresión Logística 
+
+Para predecir si dará un bajón muy grande a partir del km 30
+
+```{r}
+
+# PREPARACIÓN DE LOS DATOS
+
+# Eliminar cartegoria No élite
+df <- resultadosTokyo2025 %>%
+  filter(categoria != "No élite") %>%
+  mutate(categoria = droplevels(as.factor(categoria)))
+
+
+unique(df$categoria)
+# Encoding variable (categoria: Élite, Alto nivel, Muy entrenado, Moderadamente entrenado, Principiante)
+
+df <- df %>%
+  mutate(
+    categoria_encoded = case_when(
+      categoria == "Élite" ~ 4,
+      categoria == "Alto nivel" ~ 3,
+      categoria == "Muy entrenado" ~ 2,
+      categoria == "Moderadamente entrenado" ~ 1,
+      categoria == "Principiante" ~ 0
+    )
+  )
+
+# Pasar a segundos los ritmos
+# Calcular parciales reales (tiempos de cada segmento)
+df <- df %>%
+  mutate(
+    seg_0_5 = parcial_5km,
+    seg_5_10 = parcial_10km - parcial_5km,
+    seg_10_15 = parcial_15km - parcial_10km,
+    seg_15_20 = parcial_20km - parcial_15km,
+    seg_20_25 = parcial_25km - parcial_20km,
+    seg_25_30 = parcial_30km - parcial_25km,
+    seg_30_35 = parcial_35km - parcial_30km,
+    seg_35_40 = parcial_40km - parcial_35km,
+    seg_40_meta = tiempo_oficial - parcial_40km
+  )
+
+# Normalizar por tiempo oficial (porcentaje de tiempo en cada segmento)
+df <- df %>%
+  mutate(
+    rel_seg_0_5 = seg_0_5 / tiempo_oficial,
+    rel_seg_5_10 = seg_5_10 / tiempo_oficial,
+    rel_seg_10_15 = seg_10_15 / tiempo_oficial,
+    rel_seg_15_20 = seg_15_20 / tiempo_oficial,
+    rel_seg_20_25 = seg_20_25 / tiempo_oficial,
+    rel_seg_25_30 = seg_25_30 / tiempo_oficial,
+    rel_seg_30_35 = seg_30_35 / tiempo_oficial,
+    rel_seg_35_40 = seg_35_40 / tiempo_oficial,
+    rel_seg_40_meta = seg_40_meta / tiempo_oficial
+  )
+
+
+# Crear variable objetivo: bajón muy grande a partir del km 30
+# Bonk = 1 si el corredor tiene un ritmo relativo mayor al 12% en alguno de los segmentos posteriores al km 30
+
+df <- df %>%
+  mutate(
+    bonk = ifelse(
+      (rel_seg_30_35 > 0.12) |
+        (rel_seg_35_40 > 0.14) |
+        (rel_seg_40_meta > 0.12),
+      1,
+      0
+    )
+  )
+
+# Visualizar categorias y bonk
+table(df$categoria, df$bonk)
+
+# Seleccionar variables para el modelo
+model_data <- df %>%
+  select(
+    bonk,
+    categoria_encoded,
+    rel_seg_0_5,
+    rel_seg_5_10,
+    rel_seg_10_15,
+    rel_seg_15_20,
+    rel_seg_20_25,
+    rel_seg_25_30
+  )
+
+```
+```{r}
+# Dividir en conjunto de entrenamiento y prueba
+set.seed(123)
+
+train_index <- createDataPartition(model_data$bonk, p = 0.8, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data <- model_data[-train_index, ]
+
+# MODELO DE REGRESIÓN LOGÍSTICA
+logistic_model <- glm(
+  bonk ~ .,
+  data = train_data,
+  family = binomial(link = "logit")
+)
+
+# Resumen del modelo
+cat("=== RESUMEN MODELO DE REGRESIÓN LOGÍSTICA ===\n")
+summary(logistic_model)
+
+# Predicciones en el conjunto de prueba
+test_data$predicted_prob <- predict(logistic_model, newdata = test_data, type = "response")
+test_data$predicted_class <- ifelse(test_data$predicted_prob > 0.5, 1, 0)
+
+# Evaluación del modelo
+confusion_matrix <- table(test_data$bonk, test_data$predicted_class)
+cat("\n=== MATRIZ DE CONFUSIÓN ===\n")
+print(confusion_matrix)
+
+```
+
+Para predecir si va a ganar o no/top10 o no/ bajar de x marca o no
+
+- con los valores de PC1 y PC2
+- con los clusters
+
+**Utilidad de los modelos de regresión si ya se sabe el tiempo final**
+Hablar del diagnóstico de rendimiento retrospectivo

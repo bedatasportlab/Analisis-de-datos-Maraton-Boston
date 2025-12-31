@@ -23,29 +23,15 @@ execute:
 
 # Importacion de librerías y datos
 ```{r}
+#| label: carga-librerias
+#| include: false
+
+
 # Importo el df de resultadosTokyo tras el EDA realizado:
 resultadosTokyo2025 <- readRDS("resultadosTokyo2025.rds")
 
 # Importo las librerías necesarias:
 source("librerias.R")
-library(caret)
-library(rsample)
-library(tidyverse)    # manipulación y ggplot
-library(factoextra)   # funciones para PCA y selección de k (elbow, silhouette)
-library(cluster)      # silhouette, pam, etc.
-library(NbClust)      # alternativa para estimar k
-library(fpc)          # clusterboot (estabilidad)
-library(magrittr)     # operador %>%
-library(ggplot2)
-library(plotly)
-library(dplyr)
-library(tidyr)
-library(knitr)
-library(kableExtra)
-library(DT)
-library(gam)
-library(corrplot)
-library(mgcv)
 ```
 
 # Análisis de Componentes Principales
@@ -54,7 +40,13 @@ El **Análisis de Componentes Principales (PCA, por sus siglas en inglés *Princ
 
 ## PCA sobre ritmos de carrera a través de los parciales
 
-En esta sección se realiza un Análisis de Componentes Principales (PCA) para la categoría *Élite*. Se utilizan los tiempos reales de cada segmento de 5km junto con el segmento de 40km a meta, calculados a partir de los tiempos acumulados proporcionados en los parciales. A través de ellos, se dividirá cada parcial por el tiempo final del corredor con el objetivo de captar el porcentaje de tiempo que dedica a cada segmento durante la carrera. Por último y antes de iniciar el PCA, estandarizamos los datos para asegurar que los parciales de 5km y el de 2.195 km tengan la misma importancia en el análisis.
+En esta sección se realiza un Análisis de Componentes Principales (PCA) centrado específicamente en la categoría **Élite**. Dado que el objetivo es analizar la *estructura del ritmo* y la estrategia de carrera más que la velocidad pura, se han transformado los datos originales siguiendo estos pasos:
+
+1.  **Cálculo de tiempos netos por segmento:** Partimos de los tiempos parciales acumulados (*splits*) registrados al paso de cada punto de control. Para aislar el rendimiento en cada fase, calculamos la duración neta de cada tramo restando al tiempo acumulado actual el del parcial anterior (por ejemplo, $parcial_{10k} - parcial_{5k}$). De esta forma obtenemos cuánto tardó el atleta en recorrer cada bloque de 5km y el tramo final de 2.195km a meta.
+
+2.  **Cálculo del esfuerzo relativo (Porcentaje):** Con los tiempos netos ya calculados, dividimos la duración de cada segmento por el **tiempo oficial total** del atleta. Esta transformación convierte los valores absolutos en un **porcentaje de distribución de tiempo**. 
+
+3.  **Estandarización:** Finalmente, y como requisito previo para el PCA, procedemos a **estandarizar** las variables resultantes. Esto asegura que todos los segmentos tengan la misma importancia en el análisis, evitando que la diferencia de magnitud entre los tramos de 5km y el tramo final (más corto) distorsione los componentes principales.
 
 ### Preparación de datos
 
@@ -138,61 +130,52 @@ cat("=== AUTOVECTORES - PC1 y PC2 ===\n")
 print(pca_elite$rotation[, 1:2])
 ```
 
-Observamos que **la primera componente principal (PC1)** contiene una especie de media ponderada en la cual, se dan valores negativos de manera creciente a medida que avanzan los segmentos de la carrera. A partir de los 20km el valor absoluto de la PC1 se reduce de forma notable y vuelve a incrementar en los tramos de los 30km y los 35km.
-Un mayor valor absoluto en los parciales hasta los 20km y en los tramos 30-35km y 35-40km sugiere que para esta primera componente principal esos tramos son los más influyentes.
+### Interpretación de las Componentes Principales
 
-En cuanto a los signos, son todos negativos hasta los 25km, momento a partir del cual los siguientes segmentos comienzan a tomar valores positivos de manera incremental, bajando un poco el valor del segmento desde los 40km a meta.
+El análisis de los *loadings* (pesos) nos permite traducir las matemáticas a una narrativa de carrera. Dado que las variables son **porcentajes del tiempo total**, un valor alto en esta variable indica que el atleta fue comparativamente más lento en ese tramo (invirtió más cuota de su tiempo total).
 
-Si se proyecta la PC1 sobre un atleta, su valor variará en función de la distribución de los porcentajes de tiempo relativo en las etapas de la carrera. 
-Así, si un atleta tiene el mismo porcentaje de tiempo en todos los segmentos, PC1 tenderá a ser muy bajo por las razones que aquí siguen:
+#### 1. PC1: Evaluando el Comienzo vs Fin. 
 
-- En PC1, 6 segmentos son los más influyentes (0-5, 5-10, 10-15, 15-20, 30-35, 35-40). De estos 6, 4 tienen signo negativo.
-- Para el mismo porcentaje de tiempo en cada segmento, estas 6 etapas multiplican por un número con mayor valor absoluto que el de otras etapas, y 4 de ellas, tienden a bajar el valor de PC1.
+Esta componente explica la mayor varianza y muestra un cambio de signo claro: cargas **negativas** hasta el km 20 y **positivas** (y crecientes) desde el km 25 hasta la meta. Contrapone el desgaste de la primera mitad contra la segunda.
 
-Si, por el contrario, un atleta emplea más tiempo en los kilómetros finales (30-35, 35-40) que en los inciales el valor de PC1 tenderá a ser altamente positivo:
+* **PC1 Bajo ($< 0$) $\rightarrow$ *Estrategia Uniforme o Negative*:**
+    * El atleta invirtió tiempos muy parecidos o incluso menos en la segunda mitad que en la primera. Cuanto más negativo sea el valor, más fuerte fue el final en comparación al inicio.
+    
+* **PC1 Alto ($> 0$) $\rightarrow$ *Decadencia o "Pinchazo"***:
+    * El atleta invirtió excesivo tiempo en los tramos finales. Salió por encima de sus posibilidades y el ritmo cayó drásticamente.
+    * **¿Quién está aquí?** Corredores que "explotan", atletas de élite con mala estrategia y, en ocasiones, **liebres** que completan la carrera a trote tras cumplir su labor de marcar ritmo hasta el km 30.
 
-- El porcentaje de tiempo que el atleta ha pasado en los kilómetros finales ha sido lo suficientemente alto como para compensar los 4 segmentos que tienden a hacer negativo el valor de PC1.
+* **PC1 cercano a 0 $\rightarrow$ *Ligera Fatiga*:**
+    * El atleta mantuvo un ritmo bastante equilibrado entre ambas mitades, pudiendo tener una ligera caída en la segunda mitad, pero sin grandes diferencias.
 
-En el medio de los dos casos extremos, PC1 puede ser cercano a 0 por la misma lógica: 
+#### 2. PC2: El Eje del "Muro" (Consistencia en el Centro de la Carrera)
+Esta componente presenta una forma de "U" invertida. Aquí, el valor ideal para un atleta que busca maximizar rendimiento suele estar **cerca de 0** (equilibrio). Los extremos indican descompensaciones en la distribución del esfuerzo.
 
-- Un atleta ha pasado el suficiente tiempo en los segmentos centrales de la carrera (20-25, 25-30) como para compensar los segmentos que tienden a aumentar el valor absoluto de PC1, ya sea positivo o negativo.
+* **PC2 Alto ($> 0$) $\rightarrow$ *Crisis en el Muro* (Perfil Cóncavo):**
+    * El atleta perdió mucho tiempo relativo en la zona crítica (20-35km).
+    * **Interpretación:** Sufrió una crisis a mitad de carrera pero logró mantener una salida y llegada dignas en comparación a su bajón central.
 
-Para facilitar la comprensión del análisis, esta primera componente puede recibir el nombre de **comienzo-fin de la carrera**.
+* **PC2 Bajo ($< 0$) $\rightarrow$ *Sobre-esfuerzo Central* (Perfil Convexo):**
+    * El atleta corrió mucho más rápido en el tramo medio (15-30km) que en su salida y su llegada.
+    * **Interpretación:** Indica una estrategia de riesgo en la parte central. El atleta pudo haber salido reservando, **apretó excesivamente en el medio maratón** (quizás intentando recuperar tiempo o seguir un grupo más rápido) y terminó pagando el esfuerzo con una caída de ritmo al final.
 
-:::{.callout-important}
-No se está haciendo referencia a tiempos ni ritmos absolutos, sino a la distribución del porcentaje de tiempo de las carreras individuales:
+* **PC2 centrado en 0 $\rightarrow$ *Ritmo Consistente*:**
+    * El atleta mantuvo una distribución equilibrada del esfuerzo a lo largo de la carrera, sin picos ni valles pronunciados.
 
-- Un atleta puede haber emepezado más rápido en términos absolutos pero tener un valor de PC1 más bajo porque, por su propia distribución del ritmo a lo largo de la carrera, no ha pasado un porcentaje de tiempo mayor en los tramos centrales o finales.
-- De igual forma, un atleta puede haber empezado más lento en términos absolutos y tener un valor de PC1 más alto si, por su propia dosificación, ha pasado un porcentaje de tiempo mayor en los tramos centrales y finales.
-:::
 
-Respecto a la **segunda componente principal (PC2)**, se observan valores ligeramente negativos en los 3 primeros segmentos de la carrera, seguido de valores altamente positivos en los parciales de 20 a 30km y valores negativos en los dos últimos segmentos.
-
-Los valores altos en los segmentos intermedios indican que estos son los tramos que más influyen en la PC2. Los símbolos negativo y positivo reflejan que los tramos iniciales (0-5, 5-10 y 10-15) y finales (35-40 y 40-meta) tienden a bajar el valor de la PC2 mientras que los tramos intermedios (15-20, 20-25, 25-30, 30-35) tienden a subirlo.
-
-Al igual que se hizo con la PC1, si se proyectara la PC2 sobre un atleta, se obtendrían los siguientes resultados:
-
-Para un mismo porcentaje de tiempo en cada segmento, PC2 tendrá un valor cercano a 0:
-- Los segmentos que tienden a hacer positivo el valor de PC2 son los centrales (15-20, 20-25, 25-30, 30-35). Aunque son menos que los que tienden a hacerlo negativo, tienen mayor valor absoluto.
-
-Si un atleta aumentara su porcentaje de tiempo hay dos escenarios:
-
-- Solo en los tramos centrales: los porcentajes de los segmentos centrales multiplicados por los loadings de PC2 harían que el valor de PC2 para el atleta fuera altamente positivos.
-- Tramos centrales hasta el final: el valor de PC2 sería de nuevo cercano a 0 porque un mayor porcentaje de tiempo en los kilómetros finales se multiplicaría por un loading con valor absoluto alto y símbolo negativo, lo que disminuye el valor de PC2.
-
-Si un atleta tiene un mayor porcentaje de tiempo relativo solo en los tramos inciales o finales, el valor de PC2 será altamente negativo.
-
-Esta segunda componente puede recibir el nombre de **centro de carrera**.
-
-Cabe remarcar que el segmento del km40 hasta la meta aumenta el valor de PC1 y disminuye el valor de PC2 de forma notable.
-
-Combinando los valores de PC1 y PC2 se puede determinar el patrón de ritmo y estimar los puntos donde el porcentaje de tiempo ha sido mayor, es decir, estimar dónde el ritmo ha sido más lento y por tanto, dónde ha disminuido el rendimiento.
 
 :::{.callout-important}
-Los tramos centrales que más importancia tienen en la PC2 corresponden con el "muro", momento en el que el rendimiento disminuye muy notablemente. De esta forma, la PC2 podría reflejar una bajada de rendimiento excesiva si se ven valores muy altos. Más adelante se presentará una tabla en la que se asocien para cada atleta los valores de ambas componentes principales y los porcentajes de tiempo en cada tramo de la carrera.
+**Nota sobre Ritmo Relativo vs. Absoluto**
+Es crucial recordar que el PCA analiza la **distribución del esfuerzo**, no la velocidad pura:
+1.  Un atleta puede ser lento en tiempo total pero tener un **PC1 bajo** (perfil ganador) si gestionó bien su energía y acabó fuerte.
+2.  Un atleta élite puede ganar la carrera pero tener un **PC1 alto** si su estrategia fue arriesgada y terminó sufriendo los últimos kilómetros para mantener la posición.
 :::
 
-### Gráfica de PCA - Élite
+
+
+### Resultados obtenidos
+
+Vamos a visualizar los resultados del PCA para los 10 mejores corredores de la categoría Élite, comparándolos con la estrategia que clasificamos en el EDA (Negativa, Positiva, Uniforme, Variable):
 
 ```{r}
 # Preparar datos para graficar
@@ -206,24 +189,34 @@ cat("\n=== PRIMEROS 10 CORREDORES EN ESPACIO PC1-PC2 ===\n")
 print(head(scores_elite, 10))
 ```
 
-En esta lista se relacionan PC1 y PC2 para cada atleta y su estrategia de carrera. Se puede observar cómo los corredores que tienen valores más bajos en la PC1 (a partir de -1.7) son los que siguen una estrategia uniforme mientras que los que tienen valores más altos (cercanos a 0) siguen una estrategia positiva.
+Al analizar esta tabla, observamos una correlación clara entre las coordenadas del PCA y nuestra etiqueta de estrategia:
 
-En cuanto a la PC2, todos los valores son muy cercanos a 0, indicando que: 
+1. Uniformidad y PC1: Los corredores etiquetados como "Uniforme" presentan los valores más bajos en PC1 (generalmente inferiores a -1.7). Esto confirma que, matemáticamente, la mayor eficiencia en el tiempo total se corresponde con una gestión de carrera donde la segunda mitad es, como mínimo, igual de rápida que la primera. (PC1 negativo).
 
-1) Para los que han llevado una estrategia uniforme, la distribución relativa de los porcentajes de tiempo no ha sufrido grandes variaciones en ningún momento de la carrera.
+2. Estrategia positiva y PC1: Los corredores con valores más altos (cercanos a 0 o ligeramente superiores) coinciden con la etiqueta "Positiva".
 
-2) Para los deportistas que han llevado una estrategia positiva, la caída en el rendimiento no se ha dado en todos los segementos centrales más influyentes, sino en los tramos centrales más próximos a los tramos finales (a partir del segmento 25-30), manteniéndose luego hasta el final.
-Esto es coherente con su PC1, ya que cuando este valor también es cercano a 0, se refleja que la pérdida de rendimiento no se ha dado solo al final (en ese caso PC1 sería altamente positivo).
+En cuanto al comportamiento de la PC2, es notable que para estos 10 primeros clasificados, la PC2 oscila en valores muy cercanos a 0, indicando que:
 
-::: {.callout-important}
-No todas las estrategias presentarán los mismos valores de PC1 y PC2. 
-Por ejemplo, un corredor puede llevar una estrategia positiva por haber disminuido su rendimiento en los tramos finales de la carrera o por haberlo disminuido en los tramos intermedios hasta la meta. 
-En el primero de los casos, la pérdida de rendimiento no se vería reflejada en el valor de PC2, por dar esta más peso a los segmentos centrales.
-En el segundo de los casos, dicha pérdida se vería reflejada tanto en la PC1 y como en la PC2. 
-La consistencia de la interpretación radica en la coherencia de cada estrategia con el significado de las componentes principales.
+1. Los corredores con estrategia uniforme mantuvieron una distribución del esfuerzo constante durante la carrera, no hubo picos ni valles significativos. 
+
+2. Los corredores con estrategia positiva pero PC2 neutro sugiere que su pérdida de rendimiento no fue culpa del "muro" de los 30km, si no más bien una decadencia gradual o concentrada en los tramos finales.
+
+
+
+::: {.callout-important} Matiz sobre la Diversidad de la Estrategia Positiva
+
+Es crucial entender que la etiqueta categórica "Positiva" agrupa comportamientos que el PCA separa: 
+
+- Un corredor puede tener estrategia positiva por caer su rendimiento solo al final. En este caso, PC1 sube, pero PC2 se mantiene neutro. 
+- Otro corredor puede tener una estrategia psoitiva por una caída en el centro de la carrera (20-35km), lo que elevaría tanto PC1 como PC2.
+
+La consistencia de nuestra interpretación radica en que el PCA nos ofrece una resolución mayor para entender más a fondo las estrategias llevadas a cabo.
 :::
 
+
 #### Gráfico estático con ggplot2
+
+A continuación, ampliamos este análisis a todos los corredores de la categoría Élite. en el siguiente gráfico, diferenciamos por forma la estrategia heurística (calculada en el EDA) y por color el género, proyectados sobre el mapa del PCA:
 
 ```{r}
 # Gráfica estática básica
@@ -249,11 +242,11 @@ ggplot(
   )
 ```
 
+
+
 #### Gráfico interactivo con plotly
 
 ```{r}
-library(plotly)
-
 # Crear variable combinada para colores únicos por género y estrategia
 scores_elite <- scores_elite %>%
   mutate(grupo = paste0(Genero, " - ", estrategia))
@@ -420,30 +413,51 @@ fig <- fig %>%
 fig
 ```
 
-En estas gráficas se representa lo que se exponía con anterioridad. Se dibuja a cada atleta con un punto en un espacio de dos dimensiones. El color distingue su género, y la forma del punto (en la primera gráfica) o la intensidad del color (en la segunda gráfica) indican la estrategia que ha llevado a cabo.
-Las dos dimensiones son las dos componentes principales.
 
-A primera vista, se observa que la mayoría de los que llevaron una estrategia uniforme se sitúan a la izquierda del 0 en PC1 y además están más concentrados alrededor del 0 en PC2. 
-La mayoría de los que llevaron una estrategia positiva están cerca del 0 en PC1 o a su derecha y están más dispersos y alejados del 0 en PC2.
+### Interpretación de los Gráficos
+
+Al visualizar la distribución de los atletas, observamos un patrón de "embudo" que confirma una teoría sobre el rendimiento en maratón: a medida que nos alejamos de la estrategia óptima, la variabilidad de comportamientos se dispara. 
+
+1. La zona ideal (PC1 < -1.7, PC2 cerca de 0): Observamos un grupo de corredores denso y compaacto alrededor de estos valores. Todos ellos fueron clasificados por nuestra heurística como "Uniformes". 
+
+2. El caso atípico (Outlier): Se puede observar a una corredora con un valor de PC1 negativo junto con un valor de PC2 también muy negativo. Esto indica una estrategia de progresión muy radical, saliendo muy conservadora para luego acelerar mucho en el tramo final.
+
+3. La Dispersión del "Fallo": A medida que avanzamos hacia la derecha, el grafico se abre verticalmente. Aquí es donde nuestra clasificación heurística etiqueta a los corredores como "Positivos". En este caso, el PCA nos desvela dos tipos de estrategias:
+  - Los del "muro": con PC2 alto, sufrieron en el centro de la carrera. Aquí la estrategia "Positiva" se debe a un agotamiento temprano.
+  - Las "explosiones finales": con PC2 bajo, sufrieron al final. Aquí la estrategia "Positiva" se debe a que, corrieron el tramo medio mucho más rápido que el inicio, pero pagaron ese sobre-esfuerzon con una caída drástica al final.
+
 
 En el siguiente apartado de Clustering se profundizará más en el significado de los valores de PC1 y PC2 en relación a la estrategia.
 
-### Respondiendo preguntas
+### Respondiendo preguntas del EDA: ¿En qué momento o momentos hay un cambio notable en el ritmo de los atletas?
 
-Con este PCA se puede responder a una de las preguntas formuladas al final del EDA:
+El Análisis de Componentes Principales nos permite responder con precisión matemática a una de las preguntas claves formuladas durante el análisis exploratorio. 
 
-*¿En qué momento o momentos hay un cambio notable en el ritmo de los atletas?* 
-Se ha visto que en función de los valores en PC1 y PC2 se puede estimar la zona de la carrera en la que el cambio en el rendimiento, si lo hubo, fue remarcable. 
-En los 10 atletas de élite que se han tomado de ejemplo antes de elaborar las gráficas, solo 2 aumentaron su porcentaje de tiempo relativo a partir de un determinado tramo.
-En estos casos, por los valores cercanos a 0 en PC1 y PC2, se empezó a llevar un ritmo más lento un poco antes de entrar en los tramos finales, a partir del segmento 25-30.
+Gracias a la interpretación conjunta de PC1 y PC2, se puede determinar en qué tramo de la carrera se produjo un cambio significativo en el rendimiento del atleta (si es que hubo alguno). Los puntos clave donde hay cambios notables son: 
 
+1. **Tramo Central (20-35km):** Un valor alto en PC2 indica que el atleta experimentó una caída significativa en su rendimiento durante este tramo. Esto sugiere que el "muro" de la maratón, típicamente asociado con la fatiga acumulada, tuvo un impacto considerable en su ritmo.
+
+2. **Tramo Final (35km hasta meta):** Un valor muy bajo en PC2 indica que el atleta mantuvo un ritmo fuerte en el centro de la carrera pero sufrió una caída pronunciada en los últimos kilómetros.
+
+3. **Segunda parte (mitad-final):** Un valor alto en PC1 indica que el atleta tuvo una caída generalizada en la segunda mitad de la carrera, afectando tanto al tramo central como al final.
+
+
+--------------------
 # Clustering
 
-A partir del PCA se ha comprobado que en la élite predominan dos tipos de estrategia, uniforme y positiva. Sin embargo, los valores de PC1 y PC2 han puesto de manifiesto que dentro de una misma estrategia puede haber diferencias. Por ejemplo, se ha visto que varios atletas pueden llevar una estrategia positiva, pero algunos sufren una bajada de rendimiento en el centro de la carrera mientras que otros la sufren en el centro-final o solo en el final, lo que de forma inevitable afecta al resultado.
+El **Clustering** es una técnica de aprendizaje automático no supervisado que tiene como objetivo dividir un conjunto de datos en grupos (clústeres) de tal manera que los elementos dentro de un mismo grupo sean altamente similares entre sí, mientras que los de grupos diferentes sean lo más distintos posible.
 
-## Detección de grupos
+Para este estudio utilizaremos el algoritmo **K-Means**, uno de los métodos particionales más robustos y eficientes. Este algoritmo funciona iterativamente asignando cada atleta al "centroide" más cercano y recalculando la posición de estos centros hasta que los grupos se estabilizan geométricamente.
 
-Con clustering dirigido, se van a diferenciar los grupos de atletas que se reconocen dentro de cada estrategia:
+## Estrategia de Clustering Dirigido: Detección de Subgrupos
+
+El análisis previo mediante Componentes Principales (PCA) reveló una limitación en nuestra clasificación heurística inicial. Si bien etiquetamos a la mayoría de los atletas Élite como "Uniforme" o "Positiva", la proyección en el espacio **PC1-PC2** demostró que estas categorías son demasiado amplias y esconden comportamientos muy dispares:
+
+1.  **Heterogeneidad en la Estrategia Positiva:** Los datos muestran que la "pérdida de rendimiento" no es única. Hay distintas formas de "conseguir" una estrategia positiva.
+
+2.  **Matices en la Uniformidad:** De igual forma, el grupo "Uniforme" agrupa tanto a corredores con ritmo matemático constante como a aquellos que ejecutan un ligero *Negative Split* (de menos a más).
+
+Por ello, en esta sección aplicaremos un **Clustering Dirigido**. En lugar de mezclar a toda la población, aplicaremos K-Means específicamente **dentro** de cada grupo estratégico original. El objetivo es detectar automáticamente los **sub-patrones de comportamiento**.
 
 ```{r}
 clustering_dirigido <- scores_elite
@@ -516,31 +530,99 @@ fviz_cluster(
 )
 ```
 
-Se observan 6 clusters. Según el Hubert index (que calcula el índice de correlación entre las distancias originales de los puntos y la pertenencia a un cluster) y el D index (que calcula el índice de separación entre los puntos de un cluster y entre los clusters) graficados recientemente, el número óptimo de clusters según la varianza de los datos es de 2 para la estrategia uniforme y de 4 para la estrategia positiva.
+Al aplicar el clustering dirigido, hemos identificado 6 perfiles distintos de corredores. Basándonos en los índices de validación interna (Hubert y D index), la varianza de los datos sugirió dividir la estrategia Uniforme en 2 subgrupos y la Positiva en 4 subgrupos.
 
-Los clusters dibujados con círculos rojos y con triángulos amarillos representan a los atletas que llevaron una estrategia uniforme: 
-En el eje X, están colocados en el medio y hacia la izquierda de la gráfica por tener valores muy bajos y cercanos a 0 en PC1. 
-En el eje Y, están colocados en el medio y ligeramente hacia la parte superior de la gráfica, por valores cercanos a 0 y menores que 2 en PC2.
+Sin embargo, la visualización revela una limitación estructural: al haber forzado la división inicial por la etiqueta heurística ("Uniforme" vs "Positiva"), hemos creado fronteras artificiales.
 
-Los demás clusters representan a los atletas que llevaron una estrategia positiva. Su colocación refleja una mayor o menor variabilidad entre los segmentos de carrera. 
-Por ejemplo, el cluster de asteriscos rosas representa a los atletas que llevaron una estrategia positiva pero con poca variabilidad, lo que se puede adivinar por su localización cercana al centro de la gráfica, cerca de los clusters de estrategia uniforme. El cluster con nombre "Positiva_3", al contrario, situado en el extremo derecho y superior de la gráfica, refleja un comportamiento en el que la diferencia entre los segmentos de carrera es mucho más notable.
+Se observa que existen atletas en los grupos limítrofes (especialmente entre Positiva_4, Uniforme_2 y Uniforme_1) que geométricamente están más cerca de un cluster "vecino" de distinta categoría que de su propio centroide asignado. Es decir, hay atletas etiquetados como "Positivos" que matemáticamente se comportan como "Uniformes" (y viceversa), pero el algoritmo no pudo agruparlos correctamente por la restricción de su categoría "madre".
+
+Para corregir esto y obtener una clasificación fiel a la realidad matemática, procedemos a recalcular la pertenencia. Calcularemos los centroides (punto medio) de los 6 grupos hallados y reasignaremos a cada atleta al grupo cuyo centroide esté geométricamente más cerca, independientemente de su etiqueta inicial.
+
+```{r}
+#| label: correccion-centroides
+#| message: false
+#| warning: false
+#| fig-cap: "Clustering Final Corregido: Reasignación por Proximidad al Centroide"
+
+# 1. Calcular los centroides de los clusters actuales
+centroides <- clustering_dirigido %>%
+  group_by(cluster_final) %>%
+  summarise(
+    PC1_cent = mean(PC1),
+    PC2_cent = mean(PC2),
+    .groups = 'drop'
+  )
+
+# 2. Función para encontrar el cluster más cercano (Distancia Euclidiana)
+obtener_cluster_mas_cercano <- function(x, y, df_cent) {
+  distancias <- sqrt((df_cent$PC1_cent - x)^2 + (df_cent$PC2_cent - y)^2)
+  # Devolver el nombre del cluster con la distancia mínima
+  return(df_cent$cluster_final[which.min(distancias)])
+}
+
+# 3. Aplicar la reasignación a cada atleta
+clustering_final <- clustering_dirigido %>%
+  rowwise() %>%
+  mutate(
+    # Nuevo cluster basado en pura matemática
+    cluster_final_2 = obtener_cluster_mas_cercano(PC1, PC2, centroides),
+    
+    # Detectar si ha habido cambio de grupo respecto al asignado en el paso dirigido
+    cambio_grupo = ifelse(cluster_final != cluster_final_2, "Si", "No"),
+    
+    # Detectar si el cambio implica un cambio de Estrategia Madre (ej: de Positiva a Uniforme)
+    # Extraemos la palabra antes del guion bajo
+    estrategia_original_base = str_split(cluster_final, "_")[[1]][1],
+    estrategia_nueva_base = str_split(cluster_final_2, "_")[[1]][1],
+    cambio_categoria_madre = ifelse(estrategia_original_base != estrategia_nueva_base, "Si", "No")
+  ) %>%
+  ungroup()
+
+# Mostrar resumen de cambios
+cat("Resumen de Reasignaciones:\n")
+print(table(Original = clustering_final$cluster_final, Nuevo = clustering_final$cluster_final_2))
+
+cat("\nTotal de atletas reclasificados de estrategia:", sum(clustering_final$cambio_categoria_madre == "Si"))
+
+# --- Visualización Final Corregida ---
+fviz_cluster(
+  list(
+    data = clustering_final %>% select(PC1, PC2),
+    cluster = clustering_final$cluster_final_2
+  ),
+  geom = "point",
+  ellipse.type = "convex", # Muestra las áreas reales de influencia
+  palette = "jco",
+  ggtheme = theme_minimal(),
+  main = "Distribución Final de Perfiles (Post-Corrección)",
+  subtitle = "Clasificación basada en distancia a centroides"
+) +
+  labs(x = "PC1 (Gestión Energía)", y = "PC2 (Consistencia Central)")
+```
+
+
+Obsevamos que 12 atletas categorizados inicialmente como "Positivos" o "Uniformes", han sido reclasificados en el grupo opuesto tras la corrección matemática. Esto confirma que la clasificación heurística inicial funcionaba bien para casos claros, pero el algoritmo de clustering dirigido ha sido capaz de detectar y corregir ese grupo de atletas limítrofes donde la regla de decisión no era tan evidente.
+
+Además, en el gráfico las áreas de los clusters ahora son compactas y no se solapan, respetando la naturaleza inicial de los datos. 
+
 
 A continuación se profundiza paso a paso en el significado y utilidad de cada cluster.
 
-## Interpretación de los clusters
+## Resultados obtenidos
 
 En la siguiente tabla se resume la cantidad de atletas que hay en cada cluster:
 
 ```{r}
 # Número de atletas en cada cluster
+clustering_dirigido <- clustering_final
 tabla_resumen <- clustering_dirigido %>%
-  group_by(cluster_final) %>%
+  group_by(cluster_final_2) %>%
   summarise(num_atletas = n()) %>%
-  arrange(factor(cluster_final, levels = c("Uniforme_1", "Uniforme_2", "Positiva_1", "Positiva_2", "Positiva_3", "Positiva_4")))
+  arrange(factor(cluster_final_2, levels = c("Uniforme_1", "Uniforme_2", "Positiva_1", "Positiva_2", "Positiva_3", "Positiva_4")))
 tabla_resumen
 ```
 
-Se comprueba que entre la élite la mayoría de atletas (76 de 92) se reparten entre los clusters "Uniforme_1", "Uniforme_2" y "Positiva_4". En la visualización, son los más centrados en el eje Y y los más centrados y tendientes a la izquierda de la gráfica en el eje X.
+Se comprueba que en la élite, la mayoría de atletas (75 de 92) se reparten entre los clusters "Uniforme_1", "Uniforme_2" y "Positiva_4". En la visualización, son los más centrados en el eje Y y los más centrados y tendientes a la izquierda de la gráfica en el eje X.
 
 Con el fin de complementar la visualización y facilitar la interpretación, se procede a dibujar una tabla en la que los atletas tengan asociados su nombre, género, edad, tiempo oficial, valores de PC1 y PC2 y cluster al que pertenecen:
 
@@ -549,11 +631,11 @@ Con el fin de complementar la visualización y facilitar la interpretación, se 
 orden_clusters <- c("Uniforme_1", "Uniforme_2", "Positiva_1", "Positiva_2", "Positiva_3", "Positiva_4")
 # Convertir a factor
 clustering_dirigido <- clustering_dirigido %>%
-  mutate(cluster_final = factor(cluster_final, levels = orden_clusters))
+  mutate(cluster_final_2 = factor(cluster_final_2, levels = orden_clusters))
 
 tabla_atletas <- clustering_dirigido %>%
-  arrange(cluster_final) %>%
-  select(cluster_final, Nombre, Genero, PC1, PC2) %>%
+  arrange(cluster_final_2) %>%
+  select(cluster_final_2, Nombre, Genero, PC1, PC2) %>%
   left_join(
     elite %>% select(Nombre, tiempo_oficial, Edad),
     by = "Nombre"
@@ -563,7 +645,7 @@ tabla_atletas <- clustering_dirigido %>%
 DT::datatable(
   tabla_atletas %>%
     arrange(tiempo_oficial) %>% # Ordenar por tiempo_oficial ascendente
-    select(Nombre, Genero, Edad, PC1, PC2, tiempo_oficial, cluster_final), # reorganizar columnas
+    select(Nombre, Genero, Edad, PC1, PC2, tiempo_oficial, cluster_final_2), # reorganizar columnas
   options = list(
     pageLength = 10,      # nº filas por página
     lengthMenu = c(5,10,20,50)  # opciones de paginación
@@ -572,36 +654,35 @@ DT::datatable(
 )
 ```
 
-**Uniforme_1**: los atletas incluidos en este cluster presentan valores muy negativos de PC1. En PC2 muestran valores negativos y cercanos a 0. 
-Teniendo en cuenta las explicaciones hechas en el PCA, en este cluster se encuentran los atletas cuyos porcentajes de tiempo fueron estables a lo largo de la carrera. En lo deportivo, estos son los atletas que comenzaron dosificando sus fuerzas, lo que les permitió mantener un ritmo sin variaciones significativas. 
+Tras ello, vamos a interpretar cada uno de los clusters obtenidos en términos deportivos. Para ello, vamos a ver qué valores toman los centroides de cada cluster en las dos componentes principales:
 
-**Uniforme_2**: en el caso de los atletas que se integran en este segundo cluster, se observan varios casos:
+```{r}
+centroides <- clustering_dirigido %>%
+  group_by(cluster_final_2) %>%
+  summarise(
+    PC1_cent = mean(PC1),
+    PC2_cent = mean(PC2),
+    .groups = 'drop'
+  )
 
-1) Atletas cuyos valores están cercanos a 0 en PC1 y cercanos a 2 o por encima en PC2. Estas cifras indican que los atletas emplearon más tiempo en los kilómetros centrales (20-25, 25-30) y remontaron en los kilómetros finales. Son atletas que tuvieron una estrategia uniforme pero con ligera variabilidad en el centro de carrera
+cat("\n=== CENTROIDES DE CADA CLUSTER ===\n")
+print(centroides)
+```
 
-2) Atletas cuyos valores son altos superiores a 1 en PC y menores a 2 en PC2. En este caso los atletas tuvieron mayor porcentaje de tiempo relativo desde los tramos centrales hasta el final.
+Con los valores de los centroides y la interpretación previa de las componentes principales, podemos describir cada cluster de la siguiente manera:
 
-3) Atletas cuyos valores son cercanos a 0 en PC1 y PC2. Estas cifras reflejan una bajada en el rendimiento en el centro-final de la carrera, a partir del segmento 25-30. Sin embargo, dicha bajada fue muy ligera.
+- **Uniforme_1** (PC1:-2.30, PC2: -0.153): Atletas que tuvieron un ritmo crucero constante durante toda la carrera, dosificando fuerzas, lo que les permitió mantener un ritmo sin variaciones significativas.
 
-En resumen, el cluster "Uniforme 2" es el grupo de atletas que llevaron un ritmo estable con ligeras variaciones, bien solo en el final, desde el centro hasta el final, o desde el centro y mejorando un poco en el final.
+- **Uniforme_2** (PC1: -0.08, PC2: 1.75):  En el cluster "Uniforme 2" conviven distintos tipos de atletas, que llevaron un ritmo estable con ligeras variaciones, bien solo en el final, desde el centro hasta el final, o desde el centro y mejorando un poco en el final. En cualquier caso, la característica común es que no hubo grandes picos de fatiga y el ritmo fue bastante uniforme.
 
-**Positiva_1**: en este cluster se agrupan corredores con un valor entre 2 y 5 en PC1 y cercano a 0 y ligeramente negativo en PC2. Los valores de PC1 indican que los kilómetros finales fueron notablemente más lentos. Además, el PC2 cercano a 0 indica que los kilómetros centrales también fueron notablemente más lentos (si solo hubieran sido los finales el valor de PC2 habría sido más negativo).
+- **Positiva_4** (PC1: 0.53, PC2: -0.96): Atletas que intentaron seguir un ritmo fuerte en la primera parte de la carrera, pero la fatiga empezó a aparecer a partir del tramo medio, lo que les llevó a perder ritmo progresivamente hasta el final.
 
-En definitva, en este cluster están aquellos corredores cuya bajada de rendimiento fue significativa a partir del segmento 20-25 y hasta el final.
+- **Positiva_2** (PC1: 2.52, PC2: -3.73): Son corredores donde, la segunda parte de la carrera fue significativamente más lenta, pero observando el valor tomado por PC2, realizaron un tramo medio de la prueba por encima de sus posibilidades, pagándolo en el tramo final de la prueba.
 
-**Positiva_2**: son los atletas que tienen un valor cercano a 2 en PC1 y muy negativo en PC2. Valores altos en PC1 sugieren que el tiempo relativo fue significativamente mayor en los tramos finales. La PC2 además indica que el tiempo no fue signficativamente mayor en los kilómetros centrales, solo en los finales.
+- **Positiva_3** (PC1: 2.63, PC2: 3.37): Son corredores completamente opuestos en PC2 al grupo anterior. Mientras que comparten la característica de hacer la segunda mitad de la prueba más lenta, en este caso la bajada de rendimiento se produce en el centro de la carrera, se hundieron en "el Muro". 
 
-Los atletas de este cluster llevaron una estrategia positiva en la que la bajada de rendimiento notable ocurrió a partir del segmento 35-40.
+- **Positiva_1** (PC1: 4.11, PC2: -0.23): Son corredores que tuvieron una bajada de rendimiento muy grande en la segunda mitad de la carrera. En este caso, el valor de PC2 cercano a 0 indica que la bajada fue progresiva desde el centro hasta el final, sin picos ni valles significativos. Esta estrategia correspondería con una estrategia positiva muy agresiva.
 
-**Positiva_3**: son los atletas que tienen valores muy altos en ambas componentes (en PC1 superior a 2 y hasta 5 y PC2 superior a 3). Los valores altos en PC1 reflejan un ritmo más lento en los kilómetros centrales y finales con respecto al inicio de la carrera. El alto valor de PC2 añade que hubo una mejora de ritmo en el tramo 35-40, pues de lo contrario PC2 tendría una cifra menor.
-
-En los casos concretos en los que PC2 es alto pero PC1 es cercano a 0, se puede asociar a una mejora del ritmo de mayor magnitud, disminuyendo el porcentaje de tiempo relativo en los segmentos que más influyen en PC1.
-
-Este cluster agrupa los deportistas que sufrieron una disminución en el rendimiento significativa desde el segmento 15-20 pero consiguieron cierta mejora en los últimos kilómetros.
-
-**Positiva_4**: son aquellos atletas con valores bajos en PC1 (cercanos a 0) y muy bajos en PC2 (negativos). La PC1 cercana a 0 sugiere una bajada en el rendimiento hacia el centro-final de la maratón. La PC2 tan negativa indica una disminución notable a partir del segmento 35-40.
-
-Los corredores del cluster "Positiva_4" se mantuvieron más o menos estables durante la carrera hasta el segmento 25-30, momento a partir del cual el ritmo comenzó a aumentar progresivamente, resultando en un último segmento (35-40 y hasta la meta) significativamente más lento que los anteriores.
 
 ## Comprobación de consistencia
 
@@ -623,8 +704,8 @@ segment_cols_order <- c(
 )
 
 # --- 2) Calcular centroides ---
-centroides <- tabla_atletas %>%
-  group_by(cluster_final) %>%
+centroides <- clustering_final %>%
+  group_by(cluster_final_2) %>%
   summarise(
     PC1_centro = mean(PC1, na.rm = TRUE),
     PC2_centro = mean(PC2, na.rm = TRUE)
@@ -632,16 +713,16 @@ centroides <- tabla_atletas %>%
 
 # --- 3) Curvas medias por cluster ---
 medias_cluster <- elite_pca_data %>%
-  left_join(tabla_atletas %>% select(Nombre, cluster_final), by = "Nombre") %>%
-  group_by(cluster_final) %>%
+  left_join(clustering_final %>% select(Nombre, cluster_final_2), by = "Nombre") %>%
+  group_by(cluster_final_2) %>%
   summarise(across(all_of(segment_cols), mean, na.rm = TRUE)) %>%
-  pivot_longer(cols = -cluster_final, names_to = "segmento", values_to = "media")
+  pivot_longer(cols = -cluster_final_2, names_to = "segmento", values_to = "media")
 
 medias_cluster$segmento <- factor(medias_cluster$segmento, levels = segment_cols_order)
 
 # --- 4) Graficar curvas medias ---
 p1 <- ggplot(medias_cluster,
-             aes(x = segmento, y = media, color = cluster_final, group = cluster_final)) +
+             aes(x = segmento, y = media, color = cluster_final_2, group = cluster_final_2)) +
   geom_line(size = 1.1) +
   geom_point(size = 2) +
   labs(x = "Segmento (km)", y = "Tiempo relativo medio", color = "Cluster") +
@@ -666,11 +747,26 @@ En la gráfica y la tabla se corrobora lo que ya se descrbía con el clustering 
 -  La gráfica del cluster "Uniforme_1" es la más estable y la diferencia entre el porcentaje de tiempo del inicio y el final no es grande.
 - El cluster "Uniforme_2" presenta una diferencia de porcentajes mayor y una gráfica que aumenta de manera más progresiva a lo largo de la maratón en comparación con el cluster "Uniforme_1".
 - La línea del cluster "Positiva_1" aumenta de forma exponencial a partir del segmento 20-25 hasta el final.
-- La línea del cluster "Positiva_2" sube a partir del tramo 20-25 y sube aún más a partir del tramo 30-35.
-- En el cluster "Positiva_3" se puede ver como el porcentaje de tiempo aumenta hasta el segmento 25-30 y luego disminuye ligeramente hasta el final.
-- La línea de "Progresiva_4" se ve casi igual de estable que la de "Uniforme_1" pero a partir del segmento 20-25 el porcentaje aumenta cada vez más hasta el final.
+- La línea del cluster "Positiva_2" sube a partir del tramo 25-30, generando un pico en el último segmento de prueba.
+- En el cluster "Positiva_3" se puede ver como el porcentaje de tiempo aumenta en gran medida en el segmento de 25-30km y luego disminuye ligeramente hasta el final. 
+- La línea de "Positiva_4" observa una fatiga a partir de la segunda mitad de la prueba, progresiva.
 
 Los clusters que mayor diferencia de porcentajes tienen son "Positiva_1" y "Positiva_2".
+
+
+:::{.callout-note} **La "Zona de Transición": Uniforme_2 y Positiva_4**
+
+Es fundamental destacar la relación de proximidad entre los clústeres Uniforme_2 y Positiva_4.
+
+Mientras que el grupo Uniforme_1 representa la excelencia ideal (acabar igual de rápido de lo que se empieza), estos dos grupos intermedios representan la realidad fisiológica de la competición:
+
+- Uniforme_2 (Resiliencia): Atletas que experimentaron variabilidad pero lograron estabilizarse para no perder la etiqueta de "ritmo constante". Están en el límite de la estrategia Uniforme y Positiva.
+
+- Positiva_4 (Fatiga Natural): Atletas cuya estrategia fue correcta, pero que no pudieron evitar la degradación natural del ritmo en los kilómetros finales.
+
+Ambos grupos conforman la frontera difusa entre las categorías "madre". 
+
+:::
 
 ## Implicaciones prácticas
 
@@ -687,7 +783,7 @@ resultadosTokyo2025 <- resultadosTokyo2025 %>%
   mutate(posicion_global = row_number())
 
 # 2) Añadir esa información a tabla_atletas
-tabla_atletas_posiciones <- tabla_atletas %>%
+tabla_atletas_posiciones <- clustering_final %>%
   left_join(
     resultadosTokyo2025 %>% select(Nombre, posicion_global, tiempo_oficial),
     by = "Nombre"
@@ -697,7 +793,7 @@ tabla_atletas_posiciones <- tabla_atletas %>%
 top_general <- tabla_atletas_posiciones %>%
   arrange(posicion_global) %>%
   slice_head(n = N_top) %>%
-  select(posicion_global, cluster_final, Nombre, Genero, tiempo_oficial.x, PC1, PC2)
+  select(posicion_global, cluster_final_2, Nombre, Genero, tiempo_oficial, PC1, PC2)
 
 top_general %>%
   kable() %>%
@@ -709,7 +805,7 @@ top_mujeres <- tabla_atletas_posiciones %>%
   filter(Genero == "Women") %>% 
   arrange(posicion_global) %>%
   slice_head(n = N_top) %>%
-  select(posicion_global, cluster_final, Nombre, Genero, tiempo_oficial.x, PC1, PC2)
+  select(posicion_global, cluster_final_2, Nombre, Genero, tiempo_oficial, PC1, PC2)
 
 top_mujeres %>%
   kable() %>%
@@ -721,7 +817,7 @@ top_mujeres %>%
 conteo_top_general <- tabla_atletas_posiciones %>%
   arrange(posicion_global) %>%
   slice_head(n = N_top) %>%
-  group_by(cluster_final) %>%
+  group_by(cluster_final_2) %>%
   summarise(n = n()) %>%
   arrange(desc(n))
 
@@ -731,7 +827,7 @@ conteo_top_mujeres <- tabla_atletas_posiciones %>%
   filter(Genero == "Women") %>%
   arrange(posicion_global) %>%
   slice_head(n = N_top) %>%
-  group_by(cluster_final) %>%
+  group_by(cluster_final_2) %>%
   summarise(n = n()) %>%
   arrange(desc(n))
 
@@ -751,56 +847,21 @@ La respuesta a dichas preguntas servirían de apoyo para tomar decisiones releva
 - ¿Cómo se dividen los hombres y las mujeres en los clusters?
 
 ```{r}
-tabla_atletas %>%
-  group_by(cluster_final, Genero) %>%
+clustering_final %>%
+  group_by(cluster_final_2, Genero) %>%
   summarise(n = n()) %>%
   tidyr::pivot_wider(names_from = Genero, values_from = n, values_fill = 0)
 ```
 
-De 62 hombres de categoría élite, 30 llevaron una estrategia, lo que supone un 48% de los corredores profesionales. De 30 mujeres, 19 realizaron esta misma estrategia, lo que supone un 63%.
+De 62 hombres de categoría élite, 30 llevaron una estrategia uniforme, lo que supone un 48% de los corredores profesionales. De 30 mujeres, 17 realizaron esta misma estrategia, lo que supone un 56%.
 
 En las gráficas del EDA en las que se comparaban las estrategias en función del género, se veía como en la categoría élite había una mayor proporción de mujeres que empleaban una estrategia uniforme. Lo mismo se ha visto reflejado también en las gráficas del PCA y ahora en el conteo después del clustering.
 Este fenoméno se podría deber a la mayor proporción de fibras tipo I (las más resistentes) del organismo femenino con respecto al masculino (**citar**).
 
-- ¿Cómo se reparten las edades en los clusters? (**¿Quitar este?**)
 
-```{r}
-tabla_atletas <- tabla_atletas %>%
-  mutate(grupo_edad = cut(
-    Edad,
-    breaks = seq(15, 95, by = 5),   # 15–20, 20–25, ... 90–95
-    right = FALSE,
-    include.lowest = TRUE
-  ))
 
-edad_por_cluster <- tabla_atletas %>%
-  group_by(cluster_final, grupo_edad) %>%
-  summarise(n = n(), .groups = "drop") %>%
-  arrange(cluster_final, grupo_edad)
 
-# Convertir tabla a formato ancho (1 fila por cluster) ----
-edad_por_cluster_wide <- edad_por_cluster %>%
-  pivot_wider(
-    names_from = grupo_edad,
-    values_from = n,
-    values_fill = 0      # si un cluster no tiene nadie en ese grupo, pone 0
-  )
 
-DT::datatable(
-  edad_por_cluster_wide,
-  rownames = FALSE,
-  options = list(
-    pageLength = 10,
-    scrollX = TRUE
-  )
-)
-```
-
-En todos los clusters los grupos de edad con más representación son el de 25 a 30 años y el de 30 a 35 años. 
-
-En el EDA se observaba que la mayoría de mejores marcas se encontraban entre los 30 y los 40 años. 
-Los datos de es tabla apoyan la idea de que el pico de rendimiento en la maratón en general es superior al de otras pruebas del atletismo (superior a los 25 años).
-Sin embargo, el cluster solo se ha hecho sobre la élite. Por ello, los grupos de edad de 35 a 40 años que han obtenido tiempos cercanos aunque ligeramente inferiores deberían verse más representados en el nivel "Alto Nivel".
 
 ## Respondiendo preguntas
 
@@ -810,417 +871,3 @@ Después del PCA y el clustering, se puede responder a la segunda pregunta formu
 Como se ha visto con los valores de las componentes principales y en las gráficas que representan el comportamiento de cada cluster, en la élite no existen cambios de ritmo significativos que sean comunes a todos ellos por lo que no parece haber ninguna irregularidad en el terreno o en las condiciones medioambientales que afecte al formato de la carrera.
 
 Sin embargo, si se observa que en todos los clusters el porcentaje de tiempo aumenta a partir del segmento 20-25, momento de la carrera que coincide con el "muro". La diferencia de magnitud en el cambio de ritmo sugiere que los que menos afectados se ven son los que han llevado una estrategia uniforme muy estable. Este resultado sea posiblemente fruto del nivel de entrenamiento de estos atletas y de una mejor dosificación (mejor eficiencia energética).
-
-A continuación, a partir de las variables originales, las variables derivadas, la PCA y el clustering, se exploran varios modelos que van a permitir afinar la explicación del resultado en la maratón, así como predecir información de interés para el rendimiento deportivo.
-
-# Selección de variables
-
-Para poder crear un modelo útil para la realidad deportiva, se deben seleccionar aquellas variables que expliquen la mayor parte de la varianza.
-
-## Preparar los datasets para el modelado
-
-En primer lugar se juntan los DataFrames *elite* y *clustering_dirigido*, donde se encuentran todas las variables, desde las originales hasta las creadas durante el EDA, el PCA y el clustering. 
-
-```{r}
-# Seleccionar solo las columnas que necesitamos de clustering
-cols_nuevas_clustering <- c("cluster_final", "PC1", "PC2") # ejemplo
-
-df_modelo <- elite %>%
-  left_join(
-    clustering_dirigido %>% dplyr::select(Nombre, all_of(cols_nuevas_clustering)),
-    by = "Nombre"
-  )
-
-# Convertir categóricas a factor
-df_modelo <- df_modelo %>%
-  mutate(
-    cluster_final = as.factor(cluster_final),
-    Genero = as.factor(Genero)
-  )
-
-# Variables numéricas estándar
-df_modelo_std <- df_modelo %>%
-  mutate(across(where(is.numeric), scale, .names = "{.col}_z"))
-```
-
-## Variables numéricas y categóricas
-
-A continuación, se calcula la matriz de correlación para las variables numéricas para descartar aquellas que estén altamente correlacionadas:
-
-```{r}
-# Numéricas
-num_vars <- df_modelo %>% dplyr::select(where(is.numeric))
-matriz_cor <- cor(num_vars, use = "pairwise.complete.obs")
-kable(matriz_cor, digits = 2, caption = "Matriz de correlaciones")
-```
-
-```{r}
-num_vars <- df_modelo %>% 
-  dplyr::select(where(is.numeric))
-
-cor_mat <- cor(num_vars, use = "pairwise.complete.obs")
-
-corrplot(
-  cor_mat,
-  method = "color",
-  type = "upper",
-  tl.cex = 0.6,
-  number.cex = 0.5
-)
-```
-
-El posterior modelo de regreisón lineal intentará estudiar cuánto cambia el tiempo oficial del atleta en función de las variables explicativas. Una alta correlación de las variables explicativas (parciales) y la variable objetivo (tiempo oficial) implica que unas dependen mucho de otras, resultando imposible modificar una y manteneniendo constantes las demás. Por ello, para el modelo de regresión lineal en el que se explican los factores que más influyen en el tiempo final, se incluirán las que tienen menos correlación con el mismo, las PC y la edad.
-
-```{r}
-# Categóricas
-anova(lm(tiempo_oficial ~ cluster_final, data = df_modelo))
-anova(lm(tiempo_oficial ~ Genero, data = df_modelo))
-```
-
-Genero explica mucha variabilidad y el cluster no, porque la estrategia modula el resultado final pero no lo explica por si mismo.
-
-# Modelo de Regresión Lineal 
-
-## Explicativo
-
-Se ven qué variables afectan más al tiempo final.
-
-```{r}
-modelo_lm <- lm(
-  tiempo_oficial ~ PC1_z + PC2_z + Edad_z + cluster_final + Genero,
-  data = df_modelo_std
-)
-summary(modelo_lm)
-
-par(mfrow = c(2, 2))  # Para poner las 4 gráficas estándar en una ventana
-plot(modelo_lm)
-```
-
-La edad y el género, las PC y el cluster modulan el resultado pero no lo definen. Dos atletas pueden tener estrategias idénticas y rendimientos muy diferentes, o dos estrategias distintas y rendimientos parecidos.
-
-## GAM
-
-Como la edad puede no ser lineal, se hace GAM.
-
-```{r}
-gam_null <- gam(tiempo_oficial ~ 1, data=df_modelo)
-
-gam(
-  tiempo_oficial ~ 
-    s(Edad) +
-    s(PC1) +
-    s(PC2) +
-    cluster_final +
-    Genero,
-  data = df_modelo, select=TRUE
-)
-
-#plot(gam_model, select = 1, shade = TRUE)
-```
-
-## Predictivo
-
-Aqui se toman las variables a partir de las cuales se quiere predecir el tiempo final, no importa que en el apartado de selección de variables se observara una alta correlación.
-
-```{r}
-m1 <- lm(tiempo_oficial ~ medio_maraton, data=df_modelo)
-m2 <- lm(tiempo_oficial ~ medio_maraton + Edad + Genero, data=df_modelo)
-m3 <- lm(tiempo_oficial ~ medio_maraton + Edad + Genero + cluster_final, data=df_modelo)
-
-anova(m1, m2, m3)
-```
-
-```{r}
-modelo_pred_base <- lm(
-  tiempo_oficial ~ medio_maraton + Edad + Genero,
-  data = df_modelo
-)
-
-summary(modelo_pred_base)
-```
-
-```{r}
-df_modelo$tiempo_predicho <- predict(modelo_pred, newdata = df_modelo)
-```
-
-```{r}
-library(ggplot2)
-
-ggplot(df_modelo, aes(x = tiempo_predicho, y = tiempo_oficial)) +
-  geom_point(alpha = 0.6) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
-  labs(
-    x = "Tiempo esperado (predicho)",
-    y = "Tiempo real (oficial)",
-    title = "Tiempo esperado vs tiempo real"
-  ) +
-  theme_minimal()
-```
-
-```{r}
-ggplot(df_modelo, aes(
-  x = tiempo_predicho,
-  y = tiempo_oficial,
-  color = cluster_final
-)) +
-  geom_point(alpha = 0.7) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-  labs(
-    x = "Tiempo esperado",
-    y = "Tiempo real",
-    color = "Estrategia (cluster)",
-    title = "Esperado vs real por estrategia de carrera"
-  ) +
-  theme_minimal()
-```
-
-```{r}
-df_modelo <- df_modelo %>%
-  mutate(
-    error_pred = tiempo_oficial - tiempo_predicho
-  )
-```
-
-```{r}
-ggplot(df_modelo, aes(x = cluster_final, y = error_pred)) +
-  geom_boxplot() +
-  labs(
-    x = "Cluster",
-    y = "Error (real - esperado)",
-    title = "Desviación respecto al tiempo esperado por estrategia"
-  ) +
-  theme_minimal()
-```
-
-## GAM
-
-```{r}
-library(mgcv)
-
-gam_pred <- gam(
-  tiempo_oficial ~ 
-    s(medio_maraton) +
-    s(Edad) +
-    Genero,
-  data = df_modelo
-)
-
-summary(gam_pred)
-plot(gam_pred, pages = 1, shade = TRUE)
-```
-
-## Validación
-
-```{r}
-set.seed(123)
-idx <- sample(seq_len(nrow(df_modelo)), size = 0.7*nrow(df_modelo))
-
-train <- df_modelo[idx, ]
-test  <- df_modelo[-idx, ]
-
-mod_train <- lm(
-  tiempo_oficial ~ medio_maraton + Edad + Genero,
-  data = train
-)
-
-pred <- predict(mod_train, newdata = test)
-
-RMSE <- sqrt(mean((test$tiempo_oficial - pred)^2))
-RMSE
-```
-
-
-
-
-Para predecir el tiempo de la maratón:
-
-1) con los parciales hasta la media maratón
-2) con los tiempos desde la media maratón
-3) con los parciales hasta la media maratón teniendo en cuenta la edad
-4) con los parciales desde la media maratón teniendo en cuenta la edad
-5) con los parciales hasta la media maratón teniendo en cuenta el género
-6) con los parciales desde la media maratón teniendo en cuenta el género
-7) con los parciales hasta la media maratón teniendo en cuenta el cluster
-8) con los parciales desde la media maratón teniendo en cuenta el cluster
-9) teniéndolo todo en cuenta
-10) Puntos que conseguirá en el TPI
-
-```{r}
-names(resultadosTokyo2025)
-
-modelo_parcial_hasta_mm <- lm(tiempo_oficial ~ parcial_5km + parcial_10km + parcial_15km + parcial_20km, medio_maraton,
-               data = resultadosTokyo2025)
-
-summary(modelo_parcial_hasta_mm)
-```
-
-```{r}
-names(resultadosTokyo2025)
-
-modelo_parcial_hasta_mm <- lm(tiempo_oficial ~  parcial_15km + parcial_20km + estrategia, medio_maraton,
-               data = resultadosTokyo2025)
-
-summary(modelo_parcial_hasta_mm)
-```
-
-```{r}
-unique(resultadosTokyo2025$categoria)
-```
-
-```{r}
-par(mfrow = c(2, 2))   # 4 gráficos en una misma ventana
-plot(modelo_parcial_hasta_mm)
-par(mfrow = c(1, 1))
-```
-
-```{r}
-pred <- predict(modelo_parcial_hasta_mm)
-
-plot(resultadosTokyo2025$tiempo_oficial, pred,
-     xlab = "Tiempo real",
-     ylab = "Tiempo predicho",
-     main = "Predicción vs Real - modelo_parcial_hasta_mm")
-
-abline(0, 1, col="red", lwd=2)  # línea ideal
-```
-
-```{r}
-library(ggplot2)
-
-resultadosTokyo2025$pred <- predict(modelo_parcial_hasta_mm)
-
-ggplot(resultadosTokyo2025, aes(x = pred, y = tiempo_oficial)) +
-  geom_point() +
-  geom_abline(intercept = 0, slope = 1, color = "red") +
-  labs(title = "Predicciones vs valores reales - Modelo A",
-       x = "Tiempo predicho",
-       y = "Tiempo real") +
-  theme_minimal()
-```
-
-# Modelo de Regresión Logística 
-
-Para predecir si dará un bajón muy grande a partir del km 30
-
-```{r}
-
-# PREPARACIÓN DE LOS DATOS
-
-# Eliminar cartegoria No élite
-df <- resultadosTokyo2025 %>%
-  filter(categoria != "No élite") %>%
-  mutate(categoria = droplevels(as.factor(categoria)))
-
-
-unique(df$categoria)
-# Encoding variable (categoria: Élite, Alto nivel, Muy entrenado, Moderadamente entrenado, Principiante)
-
-df <- df %>%
-  mutate(
-    categoria_encoded = case_when(
-      categoria == "Élite" ~ 4,
-      categoria == "Alto nivel" ~ 3,
-      categoria == "Muy entrenado" ~ 2,
-      categoria == "Moderadamente entrenado" ~ 1,
-      categoria == "Principiante" ~ 0
-    )
-  )
-
-# Pasar a segundos los ritmos
-# Calcular parciales reales (tiempos de cada segmento)
-df <- df %>%
-  mutate(
-    seg_0_5 = parcial_5km,
-    seg_5_10 = parcial_10km - parcial_5km,
-    seg_10_15 = parcial_15km - parcial_10km,
-    seg_15_20 = parcial_20km - parcial_15km,
-    seg_20_25 = parcial_25km - parcial_20km,
-    seg_25_30 = parcial_30km - parcial_25km,
-    seg_30_35 = parcial_35km - parcial_30km,
-    seg_35_40 = parcial_40km - parcial_35km,
-    seg_40_meta = tiempo_oficial - parcial_40km
-  )
-
-# Normalizar por tiempo oficial (porcentaje de tiempo en cada segmento)
-df <- df %>%
-  mutate(
-    rel_seg_0_5 = seg_0_5 / tiempo_oficial,
-    rel_seg_5_10 = seg_5_10 / tiempo_oficial,
-    rel_seg_10_15 = seg_10_15 / tiempo_oficial,
-    rel_seg_15_20 = seg_15_20 / tiempo_oficial,
-    rel_seg_20_25 = seg_20_25 / tiempo_oficial,
-    rel_seg_25_30 = seg_25_30 / tiempo_oficial,
-    rel_seg_30_35 = seg_30_35 / tiempo_oficial,
-    rel_seg_35_40 = seg_35_40 / tiempo_oficial,
-    rel_seg_40_meta = seg_40_meta / tiempo_oficial
-  )
-
-
-# Crear variable objetivo: bajón muy grande a partir del km 30
-# Bonk = 1 si el corredor tiene un ritmo relativo mayor al 12% en alguno de los segmentos posteriores al km 30
-
-df <- df %>%
-  mutate(
-    bonk = ifelse(
-      (rel_seg_30_35 > 0.12) |
-        (rel_seg_35_40 > 0.14) |
-        (rel_seg_40_meta > 0.12),
-      1,
-      0
-    )
-  )
-
-# Visualizar categorias y bonk
-table(df$categoria, df$bonk)
-
-# Seleccionar variables para el modelo
-model_data <- df %>%
-  select(
-    bonk,
-    categoria_encoded,
-    rel_seg_0_5,
-    rel_seg_5_10,
-    rel_seg_10_15,
-    rel_seg_15_20,
-    rel_seg_20_25,
-    rel_seg_25_30
-  )
-
-```
-```{r}
-# Dividir en conjunto de entrenamiento y prueba
-set.seed(123)
-
-train_index <- createDataPartition(model_data$bonk, p = 0.8, list = FALSE)
-train_data <- model_data[train_index, ]
-test_data <- model_data[-train_index, ]
-
-# MODELO DE REGRESIÓN LOGÍSTICA
-logistic_model <- glm(
-  bonk ~ .,
-  data = train_data,
-  family = binomial(link = "logit")
-)
-
-# Resumen del modelo
-cat("=== RESUMEN MODELO DE REGRESIÓN LOGÍSTICA ===\n")
-summary(logistic_model)
-
-# Predicciones en el conjunto de prueba
-test_data$predicted_prob <- predict(logistic_model, newdata = test_data, type = "response")
-test_data$predicted_class <- ifelse(test_data$predicted_prob > 0.5, 1, 0)
-
-# Evaluación del modelo
-confusion_matrix <- table(test_data$bonk, test_data$predicted_class)
-cat("\n=== MATRIZ DE CONFUSIÓN ===\n")
-print(confusion_matrix)
-
-```
-
-Para predecir si va a ganar o no/top10 o no/ bajar de x marca o no
-
-- con los valores de PC1 y PC2
-- con los clusters
-
-**Utilidad de los modelos de regresión si ya se sabe el tiempo final**
-Hablar del diagnóstico de rendimiento retrospectivo

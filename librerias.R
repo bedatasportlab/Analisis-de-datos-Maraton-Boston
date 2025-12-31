@@ -5,7 +5,8 @@
     "readr", "ggplot2", "DT", "hms", "dplyr", "tidyr",
     "e1071", "stringr", "knitr", "viridis", "plotly",
     "gapminder", "patchwork", "skimr", "naniar", "grid",
-    "kableExtra"
+    "kableExtra", "caret", "rsample", "tidyverse", "factoextra", "cluster",
+    "NbClust", "fpc", "magrittr", "gam", "corrplot", "mgcv", "MASS"
   )
   
   for (lib in libs) {

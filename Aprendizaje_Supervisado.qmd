@@ -94,7 +94,13 @@ cat("Total:", nrow(train_data) + nrow(validation_data) + nrow(test_data), "\n")
 
 En esta sección se construyen modelos de regresión lineal múltiple para predecir el tiempo final de la maratón de forma progresiva. Para cada punto de control (parcial), se ajusta un modelo utilizando la información disponible hasta ese momento de la carrera.
 
-**Criterio de evaluación**: Una predicción se considera acertada si el tiempo final predicho está dentro de un margen de ±2 minutos respecto al tiempo oficial real.
+**Criterio de evaluación**: Una predicción se considera acertada si el tiempo final predicho está dentro de un margen de ±XXXXX minutos (Alba elige el que creas que debe ser el mejor umbral) respecto al tiempo oficial real.
+
+```{r}
+#| label: evaluacion
+
+umbral <- 120  # 2 minutos en segundos (Cambiar según criterio Alba)
+```
 
 ## Etapa 1: Predicción en 5 km
 
@@ -105,45 +111,92 @@ En esta primera etapa, se utiliza la información disponible en el km 5 para pre
 ```{r}
 #| label: modelo-5km
 
-# Recogemos todas las variables disponibles en el km 5
+# 1. Recogemos todas las variables disponibles en el km 5
 variables_5km <- c("Edad", "Genero", "categoria", "parcial_5km", "seg_0_5")
 
-# Ajustar modelo de regresión lineal múltiple full
+# 2. Ajustar modelo de regresión lineal múltiple full
 modelo_5km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + seg_0_5, 
                  data = train_data)
 
-# Ajustamos el modelo usando selección stepwise
+# 3. Ajustamos el modelo usando selección stepwise
 modelo_step_5km <- stepAIC(modelo_5km_full, direction = "both", trace = FALSE)
 
-# vemos qué variables ha seleccionado el modelo stepwise
+# 4. Vemos qué variables ha seleccionado el modelo stepwise
 cat("Variables seleccionadas automáticamente:\n")
 print(formula(modelo_step_5km))
 
-# 4. Resumen del modelo
+# 5. Resumen del modelo
 summary(modelo_step_5km)
 
-# 5. Predicciones usando el modelo optimizado
+# 6. Predicciones usando el modelo optimizado
 pred_5km <- predict(modelo_step_5km, newdata = train_data)
 
-# 6. Evaluar aciertos (Igual que antes)
-aciertos_5km <- abs(train_data$tiempo_oficial - pred_5km) <= 120
+# 7. Evaluar aciertos (Igual que antes)
+aciertos_5km <- abs(train_data$tiempo_oficial - pred_5km) <= umbral
 tasa_acierto_5km <- mean(aciertos_5km) * 100
 
-# 7. Imprimir Resultados
+# 8. Imprimir Resultados
 cat("\n=== RESULTADOS ETAPA 5 KM ===\n")
 cat("Tasa de acierto (±2 min):", round(tasa_acierto_5km, 2), "%\n")
 cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_5km)^2)), 2), "segundos\n")                 
 ```
 
 **Variables seleccionadas para el modelo de 5 km:**
-
+- Género, Categoría, Parcial en 5 km
 
 **Interpretación del modelo:**
 
+Para comprender cómo este modelo lineal predice el tiempo final, es importante explicar cómo se tratan las variables **categóricas** (Género y Categoría). 
+
+Dado que el modelo matemático solo entiende números, estas variables se transforman en **variables indicadoras (o *dummy*)**: actúan como "interruptores" que toman el valor **1** si la condición se cumple y **0** si no.
+
+Existe siempre una **Categoría de Referencia** (la que no aparece en la fórmula). Los coeficientes ($\beta$) nos dicen cuánto cambia el tiempo con respecto a esa referencia base.
+
+La ecuación del modelo resultante es:
+
+$$
+\text{Tiempo}_i = \beta_0 + \beta_1 \cdot \text{Parcial5km}_i + \sum \beta_j \cdot I(\text{Genero}_{ji}) + \sum \beta_k \cdot I(\text{Categoria}_{ki}) + \epsilon_i
+$$
+
+Donde $I(\cdot)$ es la función indicadora (vale 1 si es cierto, 0 si no). 
+
+Para este primer modelo, los valores estimados para los coeficientes son:
+
+$$
+\begin{aligned}
+\beta_0 &= -2531.0 \quad (\text{Intercepto / Referencia}) \\
+\beta_{\text{parcial}} &= 11.51 \\
+\beta_{\text{Non-binary}} &= 183.7 \\
+\beta_{\text{Women}} &= -263.5 \\
+\beta_{\text{AltoNivel}} &= -368.0 \\
+\beta_{\text{MuyEntr}} &= -848.3 \\
+\beta_{\text{ModEntr}} &= -1147.0 \\
+\beta_{\text{Principiante}} &= -128.2
+\end{aligned}
+$$
+
+A partir de estos valores, podemos desglosar el efecto de cada variable:
+
+* **Parcial_5km**: Por cada segundo adicional que un corredor tarda en completar el parcial de 5 km, su tiempo final aumenta en **11.51 segundos**. Existen 8 parciales de 5 km en una maratón, por lo que este coeficiente indica que a medida que avanza la carrera el ritmo es más lento.
+
+* **El Género (Variable Categórica):** La categoría de referencia es **Hombres** (valor 0 en las otras variables).
+    * Las **Mujeres** tienen un coeficiente de $-263.5$. Esto significa que, aquellas mujeres de la misma categoría y mismo paso por los 5km que un hombre, terminan la carrera **263.5 segundos más rápido** que los hombres. En esta igualdad de condiciones, las mujeres parecen mantener un ritmo más constante.
+    * Los corredores **No binarios** tienen un coeficiente de $+183.7$, tardando **183.7 segundos más** que los hombres de referencia a igualdad de las demás variables del modelo.
+
+* **La Categoría (Variable Categórica):** Asumiendo que la referencia es la categoría **Élite**, comparamos el resto contra ella:
+    * Los corredores **"Moderadamente entrenados"** presentan la mayor reducción teórica de tiempo ($-1147$ segundos respecto a la referencia).
+    * Les siguen los **"Muy entrenados"** ($-848.3$ s) y los de **"Alto nivel"** ($-368$ s).
+    * Los **"Principiantes"** apenas se diferencian de la referencia ($-128.2$ s).
+
+Cabe destacar respecto a la Categoría, que el modelo no está diciendo que los atletas de Élite corren más despacio que las demás categorías. Lo que se interpreta con estos coeficientes es que, dos corredores del mismo género y con el mismo parcial al paso de los 5km, si uno es de categoría Élite, terminará más despacio que otro de categoría inferior, pero esta explicación es improbable ya que es muy dificil encontrar a dos corredores de categorías distintas (sobretodo Élite respecto a las demás) que tengan el mismo parcial a los 5 km.
+
+Lo que sí es interpretable es que los corredores de Élite (a igualdad de género), necesitan una corrección de tiempo menor que los demás grupos para ajustar su tiempo final (a través del intercepto). Ya que, dado un parcial de 5 km, los corredores de Élite restarán 2531 segundos, mientras que los de las demás categorías restarán más segundos (al tener el dummie correspondiente a esa categoría, en un valor negativo). Esto es matemáticamente lógico ya que a mayor tiempo parcial, mayor es la penalización sufrida por ese 11.51 segundos por cada segundo extra en el parcial.
 
 
 **Análisis de resultados:**
 
+- El modelo entrenado, acierta un 7.41% de las predicciones dentro del margen de ±2 minutos.
+- El RMSE obtenido es de 1563.53, lo que indica un error de 26 minutos aproximadamente, lo cual es muy elevado.
 
 
 ## Etapa 2: Predicción en 10 km
@@ -153,17 +206,17 @@ cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_5km)^2)), 2), "se
 ```{r}
 #| label: modelo-10km
 
-# Selección de variables para el modelo en 10 km
+# 1. Selección de variables para el modelo en 10 km
 modelo_10km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
                     seg_0_5 + seg_5_10, 
                   data = train_data)
 
 
 
-# Ajustamos el modelo usando selección stepwise
+# 2. Ajustamos el modelo usando selección stepwise
 modelo_step_10km <- stepAIC(modelo_10km_full, direction = "both", trace = FALSE)
 
-# vemos qué variables ha seleccionado el modelo stepwise
+# 3. Vemos qué variables ha seleccionado el modelo stepwise
 cat("Variables seleccionadas automáticamente:\n")
 print(formula(modelo_step_10km))
 
@@ -174,22 +227,64 @@ summary(modelo_step_10km)
 pred_10km <- predict(modelo_step_10km, newdata = train_data)
 
 # 6. Evaluar aciertos (Igual que antes)
-aciertos_10km <- abs(train_data$tiempo_oficial - pred_10km) <= 120
+aciertos_10km <- abs(train_data$tiempo_oficial - pred_10km) <= umbral
 tasa_acierto_10km <- mean(aciertos_10km) * 100
 
 # 7. Imprimir Resultados
-cat("\n=== RESULTADOS ETAPA 5 KM ===\n")
+cat("\n=== RESULTADOS ETAPA 10 KM ===\n")
 cat("Tasa de acierto (±2 min):", round(tasa_acierto_10km, 2), "%\n")
 cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_10km)^2)), 2), "segundos\n") 
 ```
 
 **Variables seleccionadas para el modelo de 10 km:**
+- Edad, Genero, categoria, parcial_5km, parcial_10km
 
 **Interpretación del modelo:**
+
+Al incorporar la variable `Edad` y un segundo punto de control (`parcial_10km`), el modelo mejora sustancialmente su capacidad predictiva ($R^2 \approx 0.88$). La fórmula resultante es:
+
+$$
+\begin{aligned}
+\text{Tiempo}_i = &\beta_0 + \beta_1 \cdot \text{Edad}_i + \beta_2 \cdot \text{Parcial5km}_i + \beta_3 \cdot \text{Parcial10km}_i \\
+&+ \sum \beta_j \cdot I(\text{Genero}_{ji}) + \sum \beta_k \cdot I(\text{Categoria}_{ki}) + \epsilon_i
+\end{aligned}
+$$
+
+Los coeficientes estimados son:
+
+$$
+\begin{aligned}
+\beta_0 &= -2141.0 \quad (\text{Intercepto}) \\
+\beta_{\text{Edad}} &= -4.98 \\
+\beta_{\text{parcial5km}} &= -5.99 \\
+\beta_{\text{parcial10km}} &= 8.63 \\
+\beta_{\text{Non-binary}} &= 89.95 \quad (\text{No signif.}) \\
+\beta_{\text{Women}} &= -421.4 \\
+\beta_{\text{AltoNivel}} &= -269.9 \quad (\text{No signif.}) \\
+\beta_{\text{MuyEntr}} &= -593.7 \\
+\beta_{\text{ModEntr}} &= -718.3 \\
+\beta_{\text{Principiante}} &= 139.7 \quad (\text{No signif.})
+\end{aligned}
+$$
+
+En este nuevo modelo, observamos lo siguiente:
+
+1.  **Los parciales:**
+    * Observamos que $\beta_{\text{parcial10km}}$ es positivo ($8.63$).
+    * Sin embargo, $\beta_{\text{parcial5km}}$ es **negativo** ($-5.99$). Si tratamos de observar el significado de ambas variables de manera conjunta, observamos que es una especie de comparación entre parciales a través de sus tiempos acumulados. Si un corredor tiene un parcial de 5 km más rápido que otro, pero ambos tienen el mismo parcial a 10 km, el primero habrá ralentizado su ritmo en el segundo tramo, lo que se reflejaría en un peor tiempo final. 
+
+2.  **La Edad:**
+    * El coeficiente es $-4.98$. Por cada incremento de un año de edad, el tiempo final se reduce en casi 5 segundos (a igualdad de las demás variables). Esto puede indicar que los corredores más experimentados (mayores) saben gestionar mejor su esfuerzo en la carrera.
+
+3.  **Género y Categoría:**
+    * La diferencia a favor de las **Mujeres** se amplía a $-421.4$ segundos respecto a los hombres, reforzando la teoría de que ellas mantienen un ritmo más constante.
+    * Las categorías "Alto Nivel" y "Principiante" dejan de ser estadísticamente significativas ($p > 0.05$) al introducir los parciales. Esto sugiere que el ritmo de carrera (los parciales) ya explica por sí mismo la diferencia de nivel, haciendo redundante la etiqueta de la categoría en esos casos.
 
 
 **Análisis de resultados:**
 
+- El modelo entrenado, acierta un 9.2% de las predicciones dentro del margen de ±2 minutos.
+- El RMSE obtenido es de 1353.82, lo que indica un error de 22 minutos aproximadamente, lo cual continúa siendo muy elevado.
 
 ## Etapa 3: Predicción en 15 km
 
@@ -198,36 +293,56 @@ cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_10km)^2)), 2), "s
 ```{r}
 #| label: modelo-15km
 
-# Modelo en 15 km
-modelo_15km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+# 1. Selección de variables para el modelo en 10 km
+modelo_15km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
                     parcial_15km + seg_0_5 + seg_5_10 + seg_10_15, 
                   data = train_data)
 
-summary(modelo_15km)
 
-# Evaluación
-pred_15km <- predict(modelo_15km, newdata = test_data)
-aciertos_15km <- abs(test_data$tiempo_oficial - pred_15km) <= 120
+# 2. Ajustamos el modelo usando selección stepwise
+modelo_step_15km <- stepAIC(modelo_15km_full, direction = "both", trace = FALSE)
+
+# 3. Vemos qué variables ha seleccionado el modelo stepwise
+cat("Variables seleccionadas automáticamente:\n")
+print(formula(modelo_step_15km))
+
+# 4. Resumen del modelo
+summary(modelo_step_15km)
+
+# 5. Predicciones usando el modelo optimizado
+pred_15km <- predict(modelo_step_15km, newdata = train_data)
+
+# 6. Evaluar aciertos (Igual que antes)
+aciertos_15km <- abs(train_data$tiempo_oficial - pred_15km) <= umbral
 tasa_acierto_15km <- mean(aciertos_15km) * 100
 
+# 7. Imprimir Resultados
 cat("\n=== RESULTADOS ETAPA 15 KM ===\n")
 cat("Tasa de acierto (±2 min):", round(tasa_acierto_15km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_15km)^2)), 2), "segundos\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_15km)^2)), 2), "segundos\n") 
 ```
 
 **Variables seleccionadas para el modelo de 15 km:**
-
-<!-- Explica las variables incluidas -->
+- Edad, Genero, categoria, parcial_5km, parcial_10km, parcial_15km
 
 **Interpretación del modelo:**
 
-<!-- Análisis del modelo -->
+(redactar)
+
+Se observa una mejora en el ajuste del modelo ($R^2 \approx 0.90$) al incluir el tercer parcial. 
+
+- Edad: Por cada año adicional, el tiempo se reduce en 7.44 segundos. 
+- Género: Las mujeres terminan 449 segundos antes que los hombres. Y los hombres terminan 30.2 segundos antes que los no binarios.
+- Se observa que los parciales tienen coeficientes negativos (parcial_5km y parcial_10km) y positivo (parcial_15km). El coeficiente asignado al parcial_10km no es significativo, lo que hace que este grupo de variables se comporte de manera parecida al anterior, añadiendo un poco más de información a través de un parcial intermedio.
+
+- Categoría. Observamos que, menos la categoría "Principiante", las demás categorías tardan menos segundos que la "Élite". Esto sigue sin tener sentido deportivo, ya que la categoría "Élite" debería ser la que menos tiempo tarda.
 
 **Análisis de resultados:**
+- El modelo entrenado, acierta un 10.11% de las predicciones dentro del margen de ±2 minutos.
+- El RMSE obtenido es de 1224.65, lo que indica un error de 20 minutos aproximadamente, lo cual continúa siendo muy elevado.
 
-<!-- Comentarios sobre la mejora en la predicción -->
 
-## Etapa 4: Predicción en 20 km (Media Maratón)
+## Etapa 4: Predicción en 20 km
 
 **Variables disponibles**: `Edad`, `Genero`, `categoria`, parciales acumulados hasta 20 km, segmentos hasta 20 km
 
@@ -235,33 +350,40 @@ cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_15km)^2)), 2), "se
 #| label: modelo-20km
 
 # Modelo en 20 km
-modelo_20km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+modelo_20km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
                     parcial_15km + parcial_20km + seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20, 
                   data = train_data)
 
-summary(modelo_20km)
+# 2. Ajustamos el modelo usando selección stepwise
+modelo_step_20km <- stepAIC(modelo_20km_full, direction = "both", trace = FALSE)
 
-# Evaluación
-pred_20km <- predict(modelo_20km, newdata = test_data)
-aciertos_20km <- abs(test_data$tiempo_oficial - pred_20km) <= 120
+# 3. Vemos qué variables ha seleccionado el modelo stepwise
+cat("Variables seleccionadas automáticamente:\n")
+print(formula(modelo_step_20km))
+
+# 4. Resumen del modelo
+summary(modelo_step_20km)
+
+# 5. Predicciones usando el modelo optimizado
+pred_20km <- predict(modelo_step_20km, newdata = train_data)
+
+# 6. Evaluar aciertos (Igual que antes)
+aciertos_20km <- abs(train_data$tiempo_oficial - pred_20km) <= umbral
 tasa_acierto_20km <- mean(aciertos_20km) * 100
 
-cat("\n=== RESULTADOS ETAPA 20 KM (MEDIA MARATÓN) ===\n")
+# 7. Imprimir Resultados
+cat("\n=== RESULTADOS ETAPA 20 KM ===\n")
 cat("Tasa de acierto (±2 min):", round(tasa_acierto_20km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_20km)^2)), 2), "segundos\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_20km)^2)), 2), "segundos\n") 
 ```
 
 **Variables seleccionadas para el modelo de 20 km:**
-
-<!-- Explica las variables incluidas -->
-
+- Edad, Genero, categoria, parcial_5km, parcial_10km, parcial_15km, parcial_20km
 **Interpretación del modelo:**
 
-<!-- Análisis del modelo en el punto de media maratón -->
-
 **Análisis de resultados:**
-
-<!-- Importancia de la media maratón como punto de referencia -->
+- El modelo entrenado, acierta un 11.87% de las predicciones dentro del margen de ±2 minutos.
+- El RMSE obtenido es de 1041.04, lo que indica un error de 17.35 minutos aproximadamente, lo cual continúa siendo muy elevado.
 
 ## Etapa 5: Predicción en 25 km
 
@@ -271,21 +393,32 @@ cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_20km)^2)), 2), "se
 #| label: modelo-25km
 
 # Modelo en 25 km
-modelo_25km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+modelo_25km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
                     parcial_15km + parcial_20km + parcial_25km + 
                     seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + seg_20_25, 
                   data = train_data)
 
-summary(modelo_25km)
+# 2. Ajustamos el modelo usando selección stepwise
+modelo_step_25km <- stepAIC(modelo_25km_full, direction = "both", trace = FALSE)
 
-# Evaluación
-pred_25km <- predict(modelo_25km, newdata = test_data)
-aciertos_25km <- abs(test_data$tiempo_oficial - pred_25km) <= 120
+# 3. Vemos qué variables ha seleccionado el modelo stepwise
+cat("Variables seleccionadas automáticamente:\n")
+print(formula(modelo_step_25km))
+
+# 4. Resumen del modelo
+summary(modelo_step_25km)
+
+# 5. Predicciones usando el modelo optimizado
+pred_25km <- predict(modelo_step_25km, newdata = train_data)
+
+# 6. Evaluar aciertos (Igual que antes)
+aciertos_25km <- abs(train_data$tiempo_oficial - pred_25km) <= umbral
 tasa_acierto_25km <- mean(aciertos_25km) * 100
 
+# 7. Imprimir Resultados
 cat("\n=== RESULTADOS ETAPA 25 KM ===\n")
 cat("Tasa de acierto (±2 min):", round(tasa_acierto_25km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_25km)^2)), 2), "segundos\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_25km)^2)), 2), "segundos\n") 
 ```
 
 **Variables seleccionadas para el modelo de 25 km:**
@@ -308,34 +441,39 @@ cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_25km)^2)), 2), "se
 #| label: modelo-30km
 
 # Modelo en 30 km
-modelo_30km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+modelo_30km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
                     parcial_15km + parcial_20km + parcial_25km + parcial_30km + 
                     seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + seg_20_25 + seg_25_30, 
                   data = train_data)
 
-summary(modelo_30km)
+# 2. Ajustamos el modelo usando selección stepwise
+modelo_step_30km <- stepAIC(modelo_30km_full, direction = "both", trace = FALSE)
 
-# Evaluación
-pred_30km <- predict(modelo_30km, newdata = test_data)
-aciertos_30km <- abs(test_data$tiempo_oficial - pred_30km) <= 120
+# 3. Vemos qué variables ha seleccionado el modelo stepwise
+cat("Variables seleccionadas automáticamente:\n")
+print(formula(modelo_step_30km))
+
+# 4. Resumen del modelo
+summary(modelo_step_30km)
+
+# 5. Predicciones usando el modelo optimizado
+pred_30km <- predict(modelo_step_30km, newdata = train_data)
+
+# 6. Evaluar aciertos (Igual que antes)
+aciertos_30km <- abs(train_data$tiempo_oficial - pred_30km) <= umbral
 tasa_acierto_30km <- mean(aciertos_30km) * 100
 
+# 7. Imprimir Resultados
 cat("\n=== RESULTADOS ETAPA 30 KM ===\n")
 cat("Tasa de acierto (±2 min):", round(tasa_acierto_30km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_30km)^2)), 2), "segundos\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_30km)^2)), 2), "segundos\n") 
 ```
 
 **Variables seleccionadas para el modelo de 30 km:**
 
-<!-- Explica las variables incluidas -->
-
 **Interpretación del modelo:**
 
-<!-- Análisis del modelo en el km 30, punto crítico de la maratón -->
-
 **Análisis de resultados:**
-
-<!-- Comentarios sobre la predicción en este punto crítico -->
 
 ## Etapa 7: Predicción en 35 km
 
@@ -345,34 +483,40 @@ cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_30km)^2)), 2), "se
 #| label: modelo-35km
 
 # Modelo en 35 km
-modelo_35km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+modelo_35km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
                     parcial_15km + parcial_20km + parcial_25km + parcial_30km + parcial_35km + 
                     seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + seg_20_25 + seg_25_30 + seg_30_35, 
                   data = train_data)
 
-summary(modelo_35km)
+# 2. Ajustamos el modelo usando selección stepwise
+modelo_step_35km <- stepAIC(modelo_35km_full, direction = "both", trace = FALSE)
 
-# Evaluación
-pred_35km <- predict(modelo_35km, newdata = test_data)
-aciertos_35km <- abs(test_data$tiempo_oficial - pred_35km) <= 120
+# 3. Vemos qué variables ha seleccionado el modelo stepwise
+cat("Variables seleccionadas automáticamente:\n")
+print(formula(modelo_step_35km))
+
+# 4. Resumen del modelo
+summary(modelo_step_35km)
+
+# 5. Predicciones usando el modelo optimizado
+pred_35km <- predict(modelo_step_35km, newdata = train_data)
+
+# 6. Evaluar aciertos (Igual que antes)
+aciertos_35km <- abs(train_data$tiempo_oficial - pred_35km) <= umbral
 tasa_acierto_35km <- mean(aciertos_35km) * 100
 
+# 7. Imprimir Resultados
 cat("\n=== RESULTADOS ETAPA 35 KM ===\n")
 cat("Tasa de acierto (±2 min):", round(tasa_acierto_35km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_35km)^2)), 2), "segundos\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_35km)^2)), 2), "segundos\n") 
 ```
 
 **Variables seleccionadas para el modelo de 35 km:**
 
-<!-- Explica las variables incluidas -->
-
 **Interpretación del modelo:**
-
-<!-- Análisis del modelo -->
 
 **Análisis de resultados:**
 
-<!-- Comentarios sobre la precisión con la mayoría de la carrera completada -->
 
 ## Etapa 8: Predicción en 40 km
 
@@ -381,36 +525,43 @@ cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_35km)^2)), 2), "se
 ```{r}
 #| label: modelo-40km
 
-# Modelo en 40 km (última etapa)
-modelo_40km <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
+# Modelo en 40 km
+modelo_40km_full <- lm(tiempo_oficial ~ Edad + Genero + categoria + parcial_5km + parcial_10km + 
                     parcial_15km + parcial_20km + parcial_25km + parcial_30km + parcial_35km + 
                     parcial_40km + seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + seg_20_25 + 
                     seg_25_30 + seg_30_35 + seg_35_40, 
                   data = train_data)
 
-summary(modelo_40km)
+# 2. Ajustamos el modelo usando selección stepwise
+modelo_step_40km <- stepAIC(modelo_40km_full, direction = "both", trace = FALSE)
 
-# Evaluación
-pred_40km <- predict(modelo_40km, newdata = test_data)
-aciertos_40km <- abs(test_data$tiempo_oficial - pred_40km) <= 120
+# 3. Vemos qué variables ha seleccionado el modelo stepwise
+cat("Variables seleccionadas automáticamente:\n")
+print(formula(modelo_step_40km))
+
+# 4. Resumen del modelo
+summary(modelo_step_40km)
+
+# 5. Predicciones usando el modelo optimizado
+pred_40km <- predict(modelo_step_40km, newdata = train_data)
+
+# 6. Evaluar aciertos (Igual que antes)
+aciertos_40km <- abs(train_data$tiempo_oficial - pred_40km) <= umbral
 tasa_acierto_40km <- mean(aciertos_40km) * 100
 
+# 7. Imprimir Resultados
 cat("\n=== RESULTADOS ETAPA 40 KM ===\n")
 cat("Tasa de acierto (±2 min):", round(tasa_acierto_40km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_40km)^2)), 2), "segundos\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_40km)^2)), 2), "segundos\n") 
+
 ```
 
 **Variables seleccionadas para el modelo de 40 km:**
 
-<!-- Explica las variables incluidas -->
-
 **Interpretación del modelo:**
-
-<!-- Análisis del modelo final -->
 
 **Análisis de resultados:**
 
-<!-- Comentarios sobre la predicción final, a falta de solo 2.195 km -->
 
 
 

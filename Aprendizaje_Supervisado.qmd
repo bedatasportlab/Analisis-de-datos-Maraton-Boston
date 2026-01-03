@@ -858,37 +858,19 @@ ggplot(resultadosTokyo2025, aes(x = pred, y = tiempo_oficial)) +
   theme_minimal()
 ```
 
-# Modelo de Regresión Logística 
+# Modelo de Regresión Logística. 
 
-Para predecir si dará un bajón muy grande a partir del km 30
+En esta sección construiremos un modelo de regresión logística para predecir si un corredor sufre un "bajón" importante a partir del km 30 (variable `bonk`). Dividiremos el proceso en pasos: preparación, inspección/EDA, división train/test estratificada, ajuste del modelo, interpretación y evaluación con métricas y curva ROC.
 
+## Preparación de los datos y calculo de variable objetivo
 ```{r}
+# 1) PREPARACIÓN DE LOS DATOS
+# - Filtramos y creamos las variables de segmento y sus proporciones.
+# - Construimos la variable objetivo `bonk`.
 
-# PREPARACIÓN DE LOS DATOS
-
-# Eliminar cartegoria No élite
-df <- resultadosTokyo2025 %>%
+df_log <- resultadosTokyo2025 %>%
   filter(categoria != "No élite") %>%
-  mutate(categoria = droplevels(as.factor(categoria)))
-
-
-unique(df$categoria)
-# Encoding variable (categoria: Élite, Alto nivel, Muy entrenado, Moderadamente entrenado, Principiante)
-
-df <- df %>%
-  mutate(
-    categoria_encoded = case_when(
-      categoria == "Élite" ~ 4,
-      categoria == "Alto nivel" ~ 3,
-      categoria == "Muy entrenado" ~ 2,
-      categoria == "Moderadamente entrenado" ~ 1,
-      categoria == "Principiante" ~ 0
-    )
-  )
-
-# Pasar a segundos los ritmos
-# Calcular parciales reales (tiempos de cada segmento)
-df <- df %>%
+  mutate(categoria = droplevels(as.factor(categoria))) %>%
   mutate(
     seg_0_5 = parcial_5km,
     seg_5_10 = parcial_10km - parcial_5km,
@@ -899,83 +881,199 @@ df <- df %>%
     seg_30_35 = parcial_35km - parcial_30km,
     seg_35_40 = parcial_40km - parcial_35km,
     seg_40_meta = tiempo_oficial - parcial_40km
-  )
-
-# Normalizar por tiempo oficial (porcentaje de tiempo en cada segmento)
-df <- df %>%
+  ) %>%
   mutate(
-    rel_seg_0_5 = seg_0_5 / tiempo_oficial,
-    rel_seg_5_10 = seg_5_10 / tiempo_oficial,
-    rel_seg_10_15 = seg_10_15 / tiempo_oficial,
-    rel_seg_15_20 = seg_15_20 / tiempo_oficial,
-    rel_seg_20_25 = seg_20_25 / tiempo_oficial,
-    rel_seg_25_30 = seg_25_30 / tiempo_oficial,
+    tiempo_0_30 = parcial_30km
+  ) %>%
+  # bonk SOLO con tramos posteriores
+  mutate(
     rel_seg_30_35 = seg_30_35 / tiempo_oficial,
     rel_seg_35_40 = seg_35_40 / tiempo_oficial,
-    rel_seg_40_meta = seg_40_meta / tiempo_oficial
-  )
-
-
-# Crear variable objetivo: bajón muy grande a partir del km 30
-# Bonk = 1 si el corredor tiene un ritmo relativo mayor al 12% en alguno de los segmentos posteriores al km 30
-
-df <- df %>%
-  mutate(
-    bonk = ifelse(
-      (rel_seg_30_35 > 0.12) |
-        (rel_seg_35_40 > 0.14) |
-        (rel_seg_40_meta > 0.12),
-      1,
-      0
+    rel_seg_40_meta = seg_40_meta / tiempo_oficial,
+    bonk = as.integer(
+      (rel_seg_30_35 > 0.13) |
+      (rel_seg_35_40 > 0.15) |
+      (rel_seg_40_meta > 0.14)
     )
   )
 
-# Visualizar categorias y bonk
-table(df$categoria, df$bonk)
 
-# Seleccionar variables para el modelo
-model_data <- df %>%
-  select(
+model_data <- df_log %>%
+  mutate(
+    categoria_encoded = case_when(
+      categoria == "Élite" ~ 4,
+      categoria == "Alto nivel" ~ 3,
+      categoria == "Muy entrenado" ~ 2,
+      categoria == "Moderadamente entrenado" ~ 1,
+      categoria == "Principiante" ~ 0,
+      TRUE ~ NA_real_
+    )
+  ) %>%
+  dplyr::select(
     bonk,
     categoria_encoded,
-    rel_seg_0_5,
-    rel_seg_5_10,
-    rel_seg_10_15,
-    rel_seg_15_20,
-    rel_seg_20_25,
-    rel_seg_25_30
-  )
+    rel_seg_0_5  = seg_0_5  / tiempo_0_30,
+    rel_seg_5_10 = seg_5_10 / tiempo_0_30,
+    rel_seg_10_15 = seg_10_15 / tiempo_0_30,
+    rel_seg_15_20 = seg_15_20 / tiempo_0_30,
+    rel_seg_20_25 = seg_20_25 / tiempo_0_30,
+    rel_seg_25_30 = seg_25_30 / tiempo_0_30
+  ) %>%
+  tidyr::drop_na()
 
 ```
-```{r}
-# Dividir en conjunto de entrenamiento y prueba
-set.seed(123)
 
-train_index <- createDataPartition(model_data$bonk, p = 0.8, list = FALSE)
+La variable categoria se convierte en un valor numérico (categoria_encoded) para incluirla como predictor en el modelo. Se asigna mayor valor a categorías más entrenadas, lo que permite interpretar cómo el nivel de entrenamiento afecta el riesgo de bonk.
+
+La variable objetivo bonk indica si un corredor sufre un bajón de ritmo notable a partir del km 30. Para detectarlo:
+- Se calculan las proporciones relativas de tiempo de los últimos tramos (30-35, 35-40, 40-meta) respecto al tiempo total (tiempo_oficial).
+- Si alguna de estas proporciones supera un umbral predefinido (>0.13, >0.15, >0.14), se marca bonk = 1; en caso contrario, bonk = 0.
+
+```{r}
+# 2) EXPLORACIÓN RÁPIDA (distribución de la variable objetivo)
+library(ggplot2)
+
+ggplot(model_data, aes(x = factor(bonk))) +
+  geom_bar(fill = c("#2c7bb6", "#fdae61")) +
+  labs(x = "Bonk (0 = no, 1 = sí)", y = "Cuenta", title = "Distribución de la variable objetivo") +
+  theme_minimal()
+
+```
+
+## Construcción y evaluación del modelo logístico
+
+```{r}
+# 3) DIVISIÓN TRAIN / TEST (estratificada por `bonk` para mantener proporciones)
+set.seed(123)
+train_index <- caret::createDataPartition(model_data$bonk, p = 0.8, list = FALSE)
 train_data <- model_data[train_index, ]
 test_data <- model_data[-train_index, ]
 
-# MODELO DE REGRESIÓN LOGÍSTICA
-logistic_model <- glm(
-  bonk ~ .,
-  data = train_data,
-  family = binomial(link = "logit")
-)
-
-# Resumen del modelo
-cat("=== RESUMEN MODELO DE REGRESIÓN LOGÍSTICA ===\n")
-summary(logistic_model)
-
-# Predicciones en el conjunto de prueba
-test_data$predicted_prob <- predict(logistic_model, newdata = test_data, type = "response")
-test_data$predicted_class <- ifelse(test_data$predicted_prob > 0.5, 1, 0)
-
-# Evaluación del modelo
-confusion_matrix <- table(test_data$bonk, test_data$predicted_class)
-cat("\n=== MATRIZ DE CONFUSIÓN ===\n")
-print(confusion_matrix)
+cat("Tam. train:", nrow(train_data), "  Tam. test:", nrow(test_data), "\n")
+table(train_data$bonk)
+table(test_data$bonk)
 
 ```
+
+```{r}
+# 4) AJUSTE DEL MODELO LOGÍSTICO
+# Usamos todas las variables seleccionadas inicialmente.
+
+train_data <- train_data %>%
+  mutate(
+    delta_10_15 = rel_seg_10_15 - rel_seg_5_10,
+    delta_15_20 = rel_seg_15_20 - rel_seg_10_15,
+    delta_20_25 = rel_seg_20_25 - rel_seg_15_20,
+    delta_25_30 = rel_seg_25_30 - rel_seg_20_25
+  ) %>%
+  dplyr::select(
+    bonk,
+    categoria_encoded,
+    delta_10_15,
+    delta_15_20,
+    delta_20_25,
+    delta_25_30
+  )
+
+test_data <- test_data %>%
+  mutate(
+    delta_10_15 = rel_seg_10_15 - rel_seg_5_10,
+    delta_15_20 = rel_seg_15_20 - rel_seg_10_15,
+    delta_20_25 = rel_seg_20_25 - rel_seg_15_20,
+    delta_25_30 = rel_seg_25_30 - rel_seg_20_25
+  ) %>%
+  dplyr::select(
+    bonk,
+    categoria_encoded,
+    delta_10_15,
+    delta_15_20,
+    delta_20_25,
+    delta_25_30
+  )
+
+logistic_model <- glm(bonk ~ ., data = train_data, family = binomial(link = "logit"))
+
+summary(logistic_model)
+```
+
+La categoría codificada muestra un efecto negativo, indicando que corredores más entrenados tienen menor riesgo de bonkear. Los deltas permiten capturar cómo las variaciones de ritmo en tramos anteriores al km 30 afectan la probabilidad de sufrir un bajón posterior: incrementos en los últimos deltas (sobre todo delta_20_25 y delta_25_30) aumentan significativamente el riesgo.
+
+Los coeficientes de los deltas pequeños negativos o positivos reflejan que un acelerón temprano puede ser incluso protector (delta_10_15 negativo), mientras que los incrementos en los últimos segmentos indican un desgaste acumulado que predispone al corredor al bonk. El intercepto y los deltas más grandes (delta_20_25 y delta_25_30) muestran la importancia de la dinámica del ritmo en los últimos kilómetros previos al km 30, confirmando que los cambios de ritmo son predictores clave del bajón posterior.
+
+En conjunto, el modelo logra explicar de manera coherente el riesgo de bonk: combina la experiencia del corredor con su patrón de ritmo previo, ofreciendo probabilidades interpretables y consistentes con la fisiología de la carrera de fondo. Los valores de devianza y AIC reflejan que el ajuste es razonablemente bueno, y los predictores incluidos son estadísticamente significativos, lo que valida su relevancia en la predicción del evento.
+
+## Evaluación del modelo en conjunto de test
+
+```{r}
+# 5) PREDICCIÓN Y EVALUACIÓN EN TEST
+test_data$pred_prob <- predict(logistic_model, newdata = test_data, type = "response")
+test_data$pred_class <- as.integer(test_data$pred_prob >= 0.5)
+
+# Matriz de confusión y métricas básicas
+cm_table <- table(Observado = test_data$bonk, Predicho = test_data$pred_class)
+cm_table
+
+accuracy <- sum(diag(cm_table)) / sum(cm_table)
+precision <- ifelse(sum(cm_table["1", ]) == 0, NA, cm_table["1","1"] / sum(cm_table["1", ]))
+recall <- ifelse(sum(cm_table[,"1"]) == 0, NA, cm_table["1","1"] / sum(cm_table[,"1"]))
+f1 <- ifelse(is.na(precision) | is.na(recall) | (precision + recall) == 0, NA, 2 * precision * recall / (precision + recall))
+
+metrics <- tibble(metric = c("accuracy", "precision_pos_class","recall_pos_class","F1_pos_class"),
+                          value = c(accuracy, precision, recall, f1))
+metrics
+
+```
+
+La matriz de confusión muestra que de 1,897 corredores que realmente bonkearon (observado = 1), el modelo predijo correctamente 722 casos y clasificó erróneamente 1,175 como no bonk. Para los corredores que no bonkearon (observado = 0), se predijo correctamente a 5,011 y se cometieron 324 falsos positivos. 
+
+Por otro lado, a partir de estos datos, se sacan las siguientes métricas:
+
+- Accuracy (0.793): El modelo acierta en aproximadamente el 79.3% de los casos totales.
+- Precision para la clase positiva (0.381): De todos los corredores que el modelo predijo como bonk, solo el 38.1% realmente bonkearon. Esto indica que hay bastantes falsos positivos.
+- Recall para la clase positiva (0.690): El modelo identifica correctamente el 69.0% de los corredores que realmente bonkearon. Es decir, captura la mayoría de los casos positivos.
+- F1-score (0.491): Es la media armónica entre precision y recall, equilibrando la exactitud y la cobertura de los bonkadores. Un valor de 0.491 refleja que el modelo tiene un desempeño moderado para la clase positiva.
+
+```{r}
+# 6) CURVA ROC y AUC
+library(pROC)
+roc_obj <- roc(test_data$bonk, test_data$pred_prob)
+auc(roc_obj)
+
+plot(roc_obj, col = "#2c7bb6", main = "ROC - Modelo Logístico")
+
+```
+
+En la gráfica de la curva ROC, el eje x se representa la tasa de falsos positivos (FPR) y en el eje y la tasa de verdaderos positivos (TPR o recall). Cada punto de la curva corresponde a un umbral diferente de clasificación. El AUC (Area Under the Curve) mide el área bajo la curva ROC y resume la habilidad del modelo en un solo valor entre 0 y 1.
+
+El arco de la gráfica indica que el modelo predice correctamente muchos corredores que bonkearon sin generar demasiados falsos positivos. El AUC = 0.807 confirma que el modelo tiene un buen desempeño global, discriminando bien entre los corredores que bonkearon y los que no. 
+
+```{r}
+# 7) CALIBRACIÓN (deciles de probabilidad)
+calib_tbl <- test_data %>%
+  mutate(decile = ntile(pred_prob, 10)) %>%
+  group_by(decile) %>%
+  summarise(n = n(), mean_prob = mean(pred_prob), obs_rate = mean(bonk))
+
+calib_tbl
+
+ggplot(calib_tbl, aes(x = mean_prob, y = obs_rate)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  labs(x = "Probabilidad media predicha", y = "Tasa observada (proporción de bonk)",
+       title = "Calibración por deciles") +
+  theme_minimal()
+
+```
+
+Esta celda evalúa la calibración del modelo, mostrando cómo se corresponden las probabilidades predichas de bonk con las tasas observadas reales. Se agrupan las predicciones en deciles y se comparan la probabilidad media predicha y la proporción real de corredores que bonkearon. Los resultados muestran que los puntos siguen aproximadamente la diagonal ideal, indicando que el modelo está bien calibrado: los corredores con mayor probabilidad predicha tienden a bonkear más, y los de baja probabilidad tienden a no hacerlo. Solo se observa una ligera subestimación del riesgo en los deciles más altos, pero en general las predicciones reflejan de forma coherente el comportamiento real. Esto confirma que el modelo no solo discrimina bien (ROC/AUC), sino que sus probabilidades son interpretables y útiles.
+
+
+Conclusión corta: esta sección proporciona un flujo reproducible para construir y evaluar un modelo logístico. Si lo deseas, puedo:
+- Probar distintos umbrales (threshold) para optimizar F1 o sensibilidad.
+- Añadir regularización (glmnet) para estabilidad si observamos multicolinealidad.
+- Incluir variables categóricas (one-hot) y comparar con `categoria_encoded`.
+
+
 
 Para predecir si va a ganar o no/top10 o no/ bajar de x marca o no
 

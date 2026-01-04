@@ -85,7 +85,7 @@ elite <- elite %>%
 
 # Seleccionar solo las variables para PCA
 elite_pca_data <- elite %>%
-  select(Nombre, Genero, estrategia, starts_with("rel_seg_")) %>%
+  dplyr::select(Nombre, Genero, estrategia, starts_with("rel_seg_")) %>%
   na.omit()
 
 cat("✓ Datos preparados para categoría Élite\n")
@@ -203,7 +203,8 @@ En cuanto al comportamiento de la PC2, es notable que para estos 10 primeros cla
 
 
 
-::: {.callout-important} Matiz sobre la Diversidad de la Estrategia Positiva
+::: {.callout-important} 
+**Matiz sobre la Diversidad de la Estrategia Positiva**
 
 Es crucial entender que la etiqueta categórica "Positiva" agrupa comportamientos que el PCA separa: 
 
@@ -243,177 +244,6 @@ ggplot(
 ```
 
 
-
-#### Gráfico interactivo con plotly
-
-```{r}
-# Crear variable combinada para colores únicos por género y estrategia
-scores_elite <- scores_elite %>%
-  mutate(grupo = paste0(Genero, " - ", estrategia))
-
-# Definir paleta de colores combinada (género como tono base, estrategia como variación)
-colores_combinados <- c(
-  # Hombres (tonos azules)
-  "Men - Negativa" = "#1E3A8A",
-  "Men - Positiva" = "#2563EB",
-  "Men - Uniforme" = "#60A5FA",
-  "Men - Variable" = "#93C5FD",
-  # Mujeres (tonos rosas/morados)
-  "Women - Negativa" = "#831843",
-  "Women - Positiva" = "#BE185D",
-  "Women - Uniforme" = "#EC4899",
-  "Women - Variable" = "#F9A8D4"
-)
-
-# Calcular rangos fijos de los ejes
-rango_x <- range(scores_elite$PC1, na.rm = TRUE)
-rango_y <- range(scores_elite$PC2, na.rm = TRUE)
-margen_x <- diff(rango_x) * 0.1
-margen_y <- diff(rango_y) * 0.1
-
-# Crear figura base
-fig <- plot_ly()
-
-# Agregar trazas por cada combinación de género y estrategia
-for (genero in unique(scores_elite$Genero)) {
-  for (estrat in unique(scores_elite$estrategia)) {
-    datos_grupo <- scores_elite %>%
-      filter(Genero == genero, estrategia == estrat)
-
-    if (nrow(datos_grupo) > 0) {
-      fig <- fig %>%
-        add_trace(
-          data = datos_grupo,
-          x = ~PC1,
-          y = ~PC2,
-          type = "scatter",
-          mode = "markers",
-          name = paste0(genero, " - ", estrat),
-          legendgroup = genero,
-          legendgrouptitle = list(text = genero),
-          marker = list(
-            size = 12,
-            color = colores_combinados[paste0(genero, " - ", estrat)],
-            opacity = 0.85,
-            line = list(
-              color = "white",
-              width = 1.5
-            )
-          ),
-          text = ~ paste0(
-            "<b style='font-size:14px'>",
-            Nombre,
-            "</b><br>",
-            "<br>",
-            "<b>Género:</b> ",
-            Genero,
-            "<br>",
-            "<b>Estrategia:</b> ",
-            estrat,
-            "<br>",
-            "<br>",
-            "<b>PC1:</b> ",
-            round(PC1, 4),
-            "<br>",
-            "<b>PC2:</b> ",
-            round(PC2, 4)
-          ),
-          hovertemplate = "%{text}<extra></extra>"
-        )
-    }
-  }
-}
-
-# Configurar layout con ejes fijos
-fig <- fig %>%
-  layout(
-    title = list(
-      text = "<b>Análisis de Componentes Principales - Categoría Élite</b><br><sub>Estrategias de carrera en el Maratón de Tokio 2025</sub>",
-      font = list(
-        size = 18,
-        family = "Arial, sans-serif",
-        color = "#2C3E50"
-      ),
-      x = 0.5,
-      xanchor = "center"
-    ),
-    xaxis = list(
-      title = list(
-        text = paste0("<b>PC1 (", var_explicada[1], "%)</b>"),
-        font = list(size = 14, family = "Arial", color = "#34495E")
-      ),
-      range = c(rango_x[1] - margen_x, rango_x[2] + margen_x),
-      fixedrange = FALSE,
-      gridcolor = "#E8E8E8",
-      gridwidth = 1,
-      showgrid = TRUE,
-      zeroline = TRUE,
-      zerolinecolor = "#95A5A6",
-      zerolinewidth = 2,
-      tickfont = list(size = 11, color = "#34495E")
-    ),
-    yaxis = list(
-      title = list(
-        text = paste0("<b>PC2 (", var_explicada[2], "%)</b>"),
-        font = list(size = 14, family = "Arial", color = "#34495E")
-      ),
-      range = c(rango_y[1] - margen_y, rango_y[2] + margen_y),
-      fixedrange = FALSE,
-      gridcolor = "#E8E8E8",
-      gridwidth = 1,
-      showgrid = TRUE,
-      zeroline = TRUE,
-      zerolinecolor = "#95A5A6",
-      zerolinewidth = 2,
-      tickfont = list(size = 11, color = "#34495E")
-    ),
-    hovermode = "closest",
-    hoverlabel = list(
-      bgcolor = "white",
-      font = list(
-        family = "Arial, sans-serif",
-        size = 13,
-        color = "#2C3E50"
-      ),
-      bordercolor = "#BDC3C7",
-      align = "left"
-    ),
-    legend = list(
-      title = list(
-        text = "<b>Género y Estrategia</b>",
-        font = list(size = 13, family = "Arial")
-      ),
-      font = list(size = 11, family = "Arial"),
-      orientation = "v",
-      x = 1.02,
-      y = 1,
-      bgcolor = "rgba(255, 255, 255, 0.95)",
-      bordercolor = "#BDC3C7",
-      borderwidth = 1,
-      tracegroupgap = 10
-    ),
-    plot_bgcolor = "#FAFAFA",
-    paper_bgcolor = "#FFFFFF",
-    margin = list(l = 80, r = 180, t = 100, b = 80)
-  ) %>%
-  config(
-    displayModeBar = TRUE,
-    displaylogo = FALSE,
-    modeBarButtonsToRemove = c("lasso2d", "select2d"),
-    toImageButtonOptions = list(
-      format = "png",
-      filename = "pca_elite_tokyo2025",
-      height = 800,
-      width = 1200,
-      scale = 2
-    )
-  )
-
-# Mostrar gráfico
-fig
-```
-
-
 ### Interpretación de los Gráficos
 
 Al visualizar la distribución de los atletas, observamos un patrón de "embudo" que confirma una teoría sobre el rendimiento en maratón: a medida que nos alejamos de la estrategia óptima, la variabilidad de comportamientos se dispara. 
@@ -423,6 +253,7 @@ Al visualizar la distribución de los atletas, observamos un patrón de "embudo"
 2. El caso atípico (Outlier): Se puede observar a una corredora con un valor de PC1 negativo junto con un valor de PC2 también muy negativo. Esto indica una estrategia de progresión muy radical, saliendo muy conservadora para luego acelerar mucho en el tramo final.
 
 3. La Dispersión del "Fallo": A medida que avanzamos hacia la derecha, el grafico se abre verticalmente. Aquí es donde nuestra clasificación heurística etiqueta a los corredores como "Positivos". En este caso, el PCA nos desvela dos tipos de estrategias:
+
   - Los del "muro": con PC2 alto, sufrieron en el centro de la carrera. Aquí la estrategia "Positiva" se debe a un agotamiento temprano.
   - Las "explosiones finales": con PC2 bajo, sufrieron al final. Aquí la estrategia "Positiva" se debe a que, corrieron el tramo medio mucho más rápido que el inicio, pero pagaron ese sobre-esfuerzon con una caída drástica al final.
 
@@ -474,7 +305,7 @@ for (estr in estrategias) {
   
   # 1. Subconjunto de atletas con la estrategia
   sub <- clustering_dirigido %>% filter(estrategia == estr)
-  pcs <- sub %>% select(PC1, PC2)
+  pcs <- sub %>% dplyr::select(PC1, PC2)
   
   # 2. Escalar los datos
   pcs_scaled <- scale(pcs)
@@ -520,7 +351,7 @@ clustering_dirigido <- clustering_dirigido %>%
 # --- Visualización ---
 fviz_cluster(
   list(
-    data = clustering_dirigido %>% select(PC1, PC2),
+    data = clustering_dirigido %>% dplyr::select(PC1, PC2),
     cluster = clustering_dirigido$cluster_final
   ),
   geom = "point",
@@ -587,7 +418,7 @@ cat("\nTotal de atletas reclasificados de estrategia:", sum(clustering_final$cam
 # --- Visualización Final Corregida ---
 fviz_cluster(
   list(
-    data = clustering_final %>% select(PC1, PC2),
+    data = clustering_final %>% dplyr::select(PC1, PC2),
     cluster = clustering_final$cluster_final_2
   ),
   geom = "point",
@@ -635,9 +466,9 @@ clustering_dirigido <- clustering_dirigido %>%
 
 tabla_atletas <- clustering_dirigido %>%
   arrange(cluster_final_2) %>%
-  select(cluster_final_2, Nombre, Genero, PC1, PC2) %>%
+  dplyr::select(cluster_final_2, Nombre, Genero, PC1, PC2) %>%
   left_join(
-    elite %>% select(Nombre, tiempo_oficial, Edad),
+    elite %>% dplyr::select(Nombre, tiempo_oficial, Edad),
     by = "Nombre"
   )
 
@@ -645,7 +476,7 @@ tabla_atletas <- clustering_dirigido %>%
 DT::datatable(
   tabla_atletas %>%
     arrange(tiempo_oficial) %>% # Ordenar por tiempo_oficial ascendente
-    select(Nombre, Genero, Edad, PC1, PC2, tiempo_oficial, cluster_final_2), # reorganizar columnas
+    dplyr::select(Nombre, Genero, Edad, PC1, PC2, tiempo_oficial, cluster_final_2), # reorganizar columnas
   options = list(
     pageLength = 10,      # nº filas por página
     lengthMenu = c(5,10,20,50)  # opciones de paginación
@@ -713,7 +544,7 @@ centroides <- clustering_final %>%
 
 # --- 3) Curvas medias por cluster ---
 medias_cluster <- elite_pca_data %>%
-  left_join(clustering_final %>% select(Nombre, cluster_final_2), by = "Nombre") %>%
+  left_join(clustering_final %>% dplyr::select(Nombre, cluster_final_2), by = "Nombre") %>%
   group_by(cluster_final_2) %>%
   summarise(across(all_of(segment_cols), mean, na.rm = TRUE)) %>%
   pivot_longer(cols = -cluster_final_2, names_to = "segmento", values_to = "media")
@@ -754,7 +585,8 @@ En la gráfica y la tabla se corrobora lo que ya se descrbía con el clustering 
 Los clusters que mayor diferencia de porcentajes tienen son "Positiva_1" y "Positiva_2".
 
 
-:::{.callout-note} **La "Zona de Transición": Uniforme_2 y Positiva_4**
+:::{.callout-note} 
+**La "Zona de Transición": Uniforme_2 y Positiva_4**
 
 Es fundamental destacar la relación de proximidad entre los clústeres Uniforme_2 y Positiva_4.
 
@@ -785,7 +617,7 @@ resultadosTokyo2025 <- resultadosTokyo2025 %>%
 # 2) Añadir esa información a tabla_atletas
 tabla_atletas_posiciones <- clustering_final %>%
   left_join(
-    resultadosTokyo2025 %>% select(Nombre, posicion_global, tiempo_oficial),
+    resultadosTokyo2025 %>% dplyr::select(Nombre, posicion_global, tiempo_oficial),
     by = "Nombre"
   )
 
@@ -793,7 +625,7 @@ tabla_atletas_posiciones <- clustering_final %>%
 top_general <- tabla_atletas_posiciones %>%
   arrange(posicion_global) %>%
   slice_head(n = N_top) %>%
-  select(posicion_global, cluster_final_2, Nombre, Genero, tiempo_oficial, PC1, PC2)
+  dplyr::select(posicion_global, cluster_final_2, Nombre, Genero, tiempo_oficial, PC1, PC2)
 
 top_general %>%
   kable() %>%
@@ -805,7 +637,7 @@ top_mujeres <- tabla_atletas_posiciones %>%
   filter(Genero == "Women") %>% 
   arrange(posicion_global) %>%
   slice_head(n = N_top) %>%
-  select(posicion_global, cluster_final_2, Nombre, Genero, tiempo_oficial, PC1, PC2)
+  dplyr::select(posicion_global, cluster_final_2, Nombre, Genero, tiempo_oficial, PC1, PC2)
 
 top_mujeres %>%
   kable() %>%

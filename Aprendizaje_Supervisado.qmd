@@ -94,12 +94,18 @@ cat("Total:", nrow(train_data) + nrow(validation_data) + nrow(test_data), "\n")
 
 En esta sección se construyen modelos de regresión lineal múltiple para predecir el tiempo final de la maratón de forma progresiva. Para cada punto de control (parcial), se ajusta un modelo utilizando la información disponible hasta ese momento de la carrera.
 
-**Criterio de evaluación**: Una predicción se considera acertada si el tiempo final predicho está dentro de un margen de ±XXXXX minutos (Alba elige el que creas que debe ser el mejor umbral) respecto al tiempo oficial real.
+**Criterio de evaluación**: Una predicción se considera acertada si el tiempo final predicho está dentro de un determinado umbral. Con el objetivo de que el umbral sea realista y útil para los corredores de cada categoría, vamos a definir un vector de umbrales, cada uno para una categoría distinta.
 
 ```{r}
 #| label: evaluacion
 
-umbral <- 120  # 2 minutos en segundos (Cambiar según criterio Alba)
+umbrales_map <- c(
+  "Élite"                  = 60,   # 1 minuto
+  "Alto nivel"             = 90,   # 1.5 minutos
+  "Muy entrenado"          = 120,  # 2 minutos
+  "Moderadamente entrenado" = 180,  # 3 minutos
+  "Principiante"           = 300   # 5 minutos
+)
 ```
 
 ## Etapa 1: Predicción en 5 km
@@ -131,14 +137,20 @@ summary(modelo_step_5km)
 # 6. Predicciones usando el modelo optimizado
 pred_5km <- predict(modelo_step_5km, newdata = train_data)
 
-# 7. Evaluar aciertos (Igual que antes)
-aciertos_5km <- abs(train_data$tiempo_oficial - pred_5km) <= umbral
-tasa_acierto_5km <- mean(aciertos_5km) * 100
+# 7. Evaluación de aciertos con el umbral dinámico por categoría
+
+vector_umbrales_fila <- umbrales_map[train_data$categoria]
+error_absoluto <- abs(train_data$tiempo_oficial - pred_5km)
+aciertos_5km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_5km, na.rm = TRUE) * 100
 
 # 8. Imprimir Resultados
-cat("\n=== RESULTADOS ETAPA 5 KM ===\n")
-cat("Tasa de acierto (±2 min):", round(tasa_acierto_5km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_5km)^2)), 2), "segundos\n")                 
+
+cat("\n=== RESULTADOS ETAPA 5 KM (UMBRALES DINÁMICOS) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_5km)^2)), 2), "segundos\n")
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_5km, train_data$categoria, function(x) mean(x) * 100)             
 ```
 
 **Variables seleccionadas para el modelo de 5 km:**
@@ -195,7 +207,7 @@ Lo que sí es interpretable es que los corredores de Élite (a igualdad de géne
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 7.41% de las predicciones dentro del margen de ±2 minutos.
+- El modelo entrenado, acierta un 14.66% de las predicciones dentro del umbral determinado para cada categoría
 - El RMSE obtenido es de 1563.53, lo que indica un error de 26 minutos aproximadamente, lo cual es muy elevado.
 
 
@@ -226,14 +238,18 @@ summary(modelo_step_10km)
 # 5. Predicciones usando el modelo optimizado
 pred_10km <- predict(modelo_step_10km, newdata = train_data)
 
-# 6. Evaluar aciertos (Igual que antes)
-aciertos_10km <- abs(train_data$tiempo_oficial - pred_10km) <= umbral
-tasa_acierto_10km <- mean(aciertos_10km) * 100
+# 6. Evaluación de aciertos con el umbral dinámico por categoría
+vector_umbrales_fila <- umbrales_map[train_data$categoria]
+error_absoluto <- abs(train_data$tiempo_oficial - pred_10km)
+aciertos_10km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_10km, na.rm = TRUE) * 100
 
 # 7. Imprimir Resultados
-cat("\n=== RESULTADOS ETAPA 10 KM ===\n")
-cat("Tasa de acierto (±2 min):", round(tasa_acierto_10km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_10km)^2)), 2), "segundos\n") 
+cat("\n=== RESULTADOS ETAPA 10 KM (UMBRALES DINÁMICOS) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_10km)^2)), 2), "segundos\n")
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_10km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
 **Variables seleccionadas para el modelo de 10 km:**
@@ -283,7 +299,7 @@ En este nuevo modelo, observamos lo siguiente:
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 9.2% de las predicciones dentro del margen de ±2 minutos.
+- El modelo entrenado, acierta un 17.96% de las predicciones dentro del umbral determinado para cada categoría.
 - El RMSE obtenido es de 1353.82, lo que indica un error de 22 minutos aproximadamente, lo cual continúa siendo muy elevado.
 
 ## Etapa 3: Predicción en 15 km
@@ -312,14 +328,18 @@ summary(modelo_step_15km)
 # 5. Predicciones usando el modelo optimizado
 pred_15km <- predict(modelo_step_15km, newdata = train_data)
 
-# 6. Evaluar aciertos (Igual que antes)
-aciertos_15km <- abs(train_data$tiempo_oficial - pred_15km) <= umbral
-tasa_acierto_15km <- mean(aciertos_15km) * 100
+# 6. Evaluación de aciertos con el umbral dinámico por categoría
+vector_umbrales_fila <- umbrales_map[train_data$categoria]
+error_absoluto <- abs(train_data$tiempo_oficial - pred_15km)
+aciertos_15km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_15km, na.rm = TRUE) * 100
 
 # 7. Imprimir Resultados
-cat("\n=== RESULTADOS ETAPA 15 KM ===\n")
-cat("Tasa de acierto (±2 min):", round(tasa_acierto_15km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_15km)^2)), 2), "segundos\n") 
+cat("\n=== RESULTADOS ETAPA 15 KM (UMBRALES DINÁMICOS) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_15km)^2)), 2), "segundos\n")
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_15km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
 **Variables seleccionadas para el modelo de 15 km:**
@@ -338,7 +358,7 @@ Se observa una mejora en el ajuste del modelo ($R^2 \approx 0.90$) al incluir el
 - Categoría. Observamos que, menos la categoría "Principiante", las demás categorías tardan menos segundos que la "Élite". Esto sigue sin tener sentido deportivo, ya que la categoría "Élite" debería ser la que menos tiempo tarda.
 
 **Análisis de resultados:**
-- El modelo entrenado, acierta un 10.11% de las predicciones dentro del margen de ±2 minutos.
+- El modelo entrenado, acierta un 19.65% de las predicciones dentro del margen de ±2 minutos.
 - El RMSE obtenido es de 1224.65, lo que indica un error de 20 minutos aproximadamente, lo cual continúa siendo muy elevado.
 
 
@@ -367,14 +387,18 @@ summary(modelo_step_20km)
 # 5. Predicciones usando el modelo optimizado
 pred_20km <- predict(modelo_step_20km, newdata = train_data)
 
-# 6. Evaluar aciertos (Igual que antes)
-aciertos_20km <- abs(train_data$tiempo_oficial - pred_20km) <= umbral
-tasa_acierto_20km <- mean(aciertos_20km) * 100
+# 6. Evaluación de aciertos con el umbral dinámico por categoría
+vector_umbrales_fila <- umbrales_map[train_data$categoria]
+error_absoluto <- abs(train_data$tiempo_oficial - pred_20km)
+aciertos_20km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_20km, na.rm = TRUE) * 100
 
 # 7. Imprimir Resultados
-cat("\n=== RESULTADOS ETAPA 20 KM ===\n")
-cat("Tasa de acierto (±2 min):", round(tasa_acierto_20km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_20km)^2)), 2), "segundos\n") 
+cat("\n=== RESULTADOS ETAPA 20 KM (UMBRALES DINÁMICOS) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_20km)^2)), 2), "segundos\n")
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_20km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
 **Variables seleccionadas para el modelo de 20 km:**
@@ -382,7 +406,7 @@ cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_20km)^2)), 2), "s
 **Interpretación del modelo:**
 
 **Análisis de resultados:**
-- El modelo entrenado, acierta un 11.87% de las predicciones dentro del margen de ±2 minutos.
+- El modelo entrenado, acierta un 23.83% de las predicciones dentro del margen de ±2 minutos.
 - El RMSE obtenido es de 1041.04, lo que indica un error de 17.35 minutos aproximadamente, lo cual continúa siendo muy elevado.
 
 ## Etapa 5: Predicción en 25 km
@@ -411,14 +435,18 @@ summary(modelo_step_25km)
 # 5. Predicciones usando el modelo optimizado
 pred_25km <- predict(modelo_step_25km, newdata = train_data)
 
-# 6. Evaluar aciertos (Igual que antes)
-aciertos_25km <- abs(train_data$tiempo_oficial - pred_25km) <= umbral
-tasa_acierto_25km <- mean(aciertos_25km) * 100
+# 6. Evaluación de aciertos con el umbral dinámico por categoría
+vector_umbrales_fila <- umbrales_map[train_data$categoria]
+error_absoluto <- abs(train_data$tiempo_oficial - pred_25km)
+aciertos_25km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_25km, na.rm = TRUE) * 100
 
 # 7. Imprimir Resultados
-cat("\n=== RESULTADOS ETAPA 25 KM ===\n")
-cat("Tasa de acierto (±2 min):", round(tasa_acierto_25km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_25km)^2)), 2), "segundos\n") 
+cat("\n=== RESULTADOS ETAPA 25 KM (UMBRALES DINÁMICOS) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_25km)^2)), 2), "segundos\n")
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_25km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
 **Variables seleccionadas para el modelo de 25 km:**
@@ -459,14 +487,18 @@ summary(modelo_step_30km)
 # 5. Predicciones usando el modelo optimizado
 pred_30km <- predict(modelo_step_30km, newdata = train_data)
 
-# 6. Evaluar aciertos (Igual que antes)
-aciertos_30km <- abs(train_data$tiempo_oficial - pred_30km) <= umbral
-tasa_acierto_30km <- mean(aciertos_30km) * 100
+# 6. Evaluación de aciertos con el umbral dinámico por categoría
+vector_umbrales_fila <- umbrales_map[train_data$categoria]
+error_absoluto <- abs(train_data$tiempo_oficial - pred_30km)
+aciertos_30km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_30km, na.rm = TRUE) * 100
 
 # 7. Imprimir Resultados
-cat("\n=== RESULTADOS ETAPA 30 KM ===\n")
-cat("Tasa de acierto (±2 min):", round(tasa_acierto_30km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_30km)^2)), 2), "segundos\n") 
+cat("\n=== RESULTADOS ETAPA 30 KM (UMBRALES DINÁMICOS) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_30km)^2)), 2), "segundos\n")
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_30km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
 **Variables seleccionadas para el modelo de 30 km:**
@@ -501,14 +533,18 @@ summary(modelo_step_35km)
 # 5. Predicciones usando el modelo optimizado
 pred_35km <- predict(modelo_step_35km, newdata = train_data)
 
-# 6. Evaluar aciertos (Igual que antes)
-aciertos_35km <- abs(train_data$tiempo_oficial - pred_35km) <= umbral
-tasa_acierto_35km <- mean(aciertos_35km) * 100
+# 6. Evaluación de aciertos con el umbral dinámico por categoría
+vector_umbrales_fila <- umbrales_map[train_data$categoria]
+error_absoluto <- abs(train_data$tiempo_oficial - pred_35km)
+aciertos_35km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_35km, na.rm = TRUE) * 100
 
 # 7. Imprimir Resultados
-cat("\n=== RESULTADOS ETAPA 35 KM ===\n")
-cat("Tasa de acierto (±2 min):", round(tasa_acierto_35km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_35km)^2)), 2), "segundos\n") 
+cat("\n=== RESULTADOS ETAPA 35 KM (UMBRALES DINÁMICOS) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_35km)^2)), 2), "segundos\n")
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_35km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
 **Variables seleccionadas para el modelo de 35 km:**
@@ -545,14 +581,18 @@ summary(modelo_step_40km)
 # 5. Predicciones usando el modelo optimizado
 pred_40km <- predict(modelo_step_40km, newdata = train_data)
 
-# 6. Evaluar aciertos (Igual que antes)
-aciertos_40km <- abs(train_data$tiempo_oficial - pred_40km) <= umbral
-tasa_acierto_40km <- mean(aciertos_40km) * 100
+# 6. Evaluación de aciertos con el umbral dinámico por categoría
+vector_umbrales_fila <- umbrales_map[train_data$categoria]
+error_absoluto <- abs(train_data$tiempo_oficial - pred_40km)
+aciertos_40km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_40km, na.rm = TRUE) * 100
 
 # 7. Imprimir Resultados
-cat("\n=== RESULTADOS ETAPA 40 KM ===\n")
-cat("Tasa de acierto (±2 min):", round(tasa_acierto_40km, 2), "%\n")
-cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_40km)^2)), 2), "segundos\n") 
+cat("\n=== RESULTADOS ETAPA 40 KM (UMBRALES DINÁMICOS) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_40km)^2)), 2), "segundos\n")
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_40km, train_data$categoria, function(x) mean(x) * 100)
 
 ```
 
@@ -563,14 +603,85 @@ cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_40km)^2)), 2), "s
 **Análisis de resultados:**
 
 
+# Posible Mejora: Modelos más complejos. Interacciones entre variables
+
+Podemos observar que el modelo lineal consigue tener tasas de acierto muy altas en categorías como "Moderadamente entrenado" y "Muy entrenado", pero no consigue predecir bien en categorías como "Élite" o "Principiante". Esto puede deberse a que, una sola pendiente (por cada parcial) para definir el comportamiento de tantos tipos de atletas diferentes no es suficiente.
+
+Es por ello que, viendo los resultados obtenidos, a continuación se propone una posible mejora del modelo a través de **Modelo Lineal Múltiple con Interacciones**. 
+
+De esta forma, en los parciales, tendremos una pendiente diferente para cada categoría, permitiendo que el modelo se adapte mejor a las diferentes estrategias de carrera y manteniendo la interpretabilidad del modelo lineal.
+
+Vamos a implementar esta mejora en el modelo de 35 km:
+
+```{r}
+#| label: modelo-35km-interacciones
+#| 
+# 1. Definición del Modelo Full con INTERACCIONES
+# Nota el cambio: (variables...) * categoria
+modelo_35km_full <- lm(tiempo_oficial ~ Edad + Genero + 
+                         (parcial_5km + parcial_10km + parcial_15km + 
+                          parcial_20km + parcial_25km + parcial_30km + parcial_35km + 
+                          seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + 
+                          seg_20_25 + seg_25_30 + seg_30_35) * categoria, 
+                       data = train_data)
+
+# 2. Ajustamos el modelo usando selección stepwise
+# Ahora esto es AÚN más importante, porque stepAIC eliminará las interacciones que no aporten nada
+modelo_step_35km <- stepAIC(modelo_35km_full, direction = "both", trace = FALSE)
+
+# 3. Vemos qué variables ha seleccionado el modelo stepwise
+cat("Variables seleccionadas automáticamente (incluyendo interacciones):\n")
+print(formula(modelo_step_35km))
+
+# 4. Resumen del modelo
+# Fíjate en los coeficientes que tengan ":" (ej. parcial_35km:categoriaElite)
+summary(modelo_step_35km)
+
+# 5. Predicciones usando el modelo optimizado
+pred_35km <- predict(modelo_step_35km, newdata = train_data)
+
+# 6. Evaluación de aciertos con el umbral dinámico por categoría
+# Asegúrate de tener definido 'umbrales_map' como hicimos antes
+vector_umbrales_fila <- umbrales_map[as.character(train_data$categoria)]
+error_absoluto <- abs(train_data$tiempo_oficial - pred_35km)
+aciertos_35km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_35km, na.rm = TRUE) * 100
+
+# 7. Imprimir Resultados
+cat("\n=== RESULTADOS ETAPA 35 KM (CON INTERACCIONES) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((train_data$tiempo_oficial - pred_35km)^2)), 2), "segundos\n")
+
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_35km, train_data$categoria, function(x) mean(x) * 100)
+```
+
+
+Modelo sin interacciones: 
+
+- 55.47% tasa de acierto global
+- RMSE: 437.08
+- Tasa de acierto por categoría: 
+    - AltoNivel: 50.87%
+    - MuyEntr: 69.28%
+    - ModeradamenteEntr: 71.98%
+    - Principiante: 52.03%
+    - Élite: 60.60%
 
 
 
+Modelo con interacciones:
 
+- 57.13% tasa de acierto global
+- RMSE: 435.63
+- Tasa de acierto por categoría: 
+    - AltoNivel: 81.87%
+    - MuyEntr: 83.25%
+    - ModeradamenteEntr: 76.19%
+    - Principiante: 52.17%
+    - Élite: 77.27%
 
-
-
-
+Observamos que el modelo con interacciones, mejora la tasa de acierto de todas las categorías, siendo mucho más predictivo en las categorías de mayor nivel (Élite, Muy Entrenado y Alto Nivel). Esto indica que las interacciones permiten capturar mejor las diferencias en estrategias y rendimientos entre las distintas categorías de corredores.
 
 ---------------------------------------------------------
 # Selección de variables (previo)

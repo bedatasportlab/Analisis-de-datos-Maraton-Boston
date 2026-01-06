@@ -103,8 +103,8 @@ umbrales_map <- c(
   "Élite"                  = 60,   # 1 minuto
   "Alto nivel"             = 90,   # 1.5 minutos
   "Muy entrenado"          = 120,  # 2 minutos
-  "Moderadamente entrenado" = 180,  # 3 minutos
-  "Principiante"           = 300   # 5 minutos
+  "Moderadamente entrenado" = 240,  # 4 minutos
+  "Principiante"           = 420   # 7 minutos
 )
 ```
 
@@ -164,6 +164,8 @@ Dado que el modelo matemático solo entiende números, estas variables se transf
 
 Existe siempre una **Categoría de Referencia** (la que no aparece en la fórmula). Los coeficientes ($\beta$) nos dicen cuánto cambia el tiempo con respecto a esa referencia base.
 
+Por lo tanto, un modelo lineal que contiene variables categóricas y numéricas, tiene la misma pendiente para la variable numérica (aquí, el parcial de 5 km), pero diferentes interceptos dependiendo de las categorías a las que pertenezca el corredor.
+
 La ecuación del modelo resultante es:
 
 $$
@@ -187,28 +189,49 @@ $$
 \end{aligned}
 $$
 
-A partir de estos valores, podemos desglosar el efecto de cada variable:
+A partir de los valores obtenidos, podemos desclosar el efecto de cada variable entendiendo primero la mecánica básica del modelo y luego profundizando en la razón de cada coeficiente:
 
-* **Parcial_5km**: Por cada segundo adicional que un corredor tarda en completar el parcial de 5 km, su tiempo final aumenta en **11.51 segundos**. Existen 8 parciales de 5 km en una maratón, por lo que este coeficiente indica que a medida que avanza la carrera el ritmo es más lento.
+1. **Parcial en 5 km:**
+    * El coeficiente es $11.51$, lo que indica que por cada segundo adicional en el parcial de 5 km, el tiempo final aumenta en aproximadamente 11.51 segundos. También interpretable como que el tiempo tardado en los primeros 5 km se multiplica por 11.51 para estimar el tiempo total. Cabe destacar que en la maratón hay aproximadamente 8 parciales de 5 km, por lo que este coeficiente indica que los corredores comienzan más rápido que el ritmo medio real, asumiendo una pérdida de ritmo progresiva.
 
-* **El Género (Variable Categórica):** La categoría de referencia es **Hombres** (valor 0 en las otras variables).
-    * Las **Mujeres** tienen un coeficiente de $-263.5$. Esto significa que, aquellas mujeres de la misma categoría y mismo paso por los 5km que un hombre, terminan la carrera **263.5 segundos más rápido** que los hombres. En esta igualdad de condiciones, las mujeres parecen mantener un ritmo más constante.
-    * Los corredores **No binarios** tienen un coeficiente de $+183.7$, tardando **183.7 segundos más** que los hombres de referencia a igualdad de las demás variables del modelo.
+2. **Intercepto**
+    * El valor de $\beta_0 = -2531.0$. Este es el ajuste matemático base para el grupo de referencia (Hombres de categoría Élite). No tiene una interpretación física directa. Simplemente, quiere decir que el modelo sobreestima el tiempo tardado por el coeficiente del parcial, y necesita restar 2531 segundos para ajustar la predicción en ese grupo.
 
-* **La Categoría (Variable Categórica):** Asumiendo que la referencia es la categoría **Élite**, comparamos el resto contra ella:
-    * Los corredores **"Moderadamente entrenados"** presentan la mayor reducción teórica de tiempo ($-1147$ segundos respecto a la referencia).
-    * Les siguen los **"Muy entrenados"** ($-848.3$ s) y los de **"Alto nivel"** ($-368$ s).
-    * Los **"Principiantes"** apenas se diferencian de la referencia ($-128.2$ s).
+3. **Género:**
+    * Los corredores **No Binarios** tienen un coeficiente positivo ($183.7$), lo que indica que, a igualdad de parcial y categoría, su tiempo final es aproximadamente 183.7 segundos más lento que los hombres.
+    * Las **Mujeres** tienen un coeficiente negativo ($-263.5$), lo que indica que, a igualdad de parcial y categoría, su tiempo final es aproximadamente 263.5 segundos más rápido que los hombres.
 
-Cabe destacar respecto a la Categoría, que el modelo no está diciendo que los atletas de Élite corren más despacio que las demás categorías. Lo que se interpreta con estos coeficientes es que, dos corredores del mismo género y con el mismo parcial al paso de los 5km, si uno es de categoría Élite, terminará más despacio que otro de categoría inferior, pero esta explicación es improbable ya que es muy dificil encontrar a dos corredores de categorías distintas (sobretodo Élite respecto a las demás) que tengan el mismo parcial a los 5 km.
+4. **Categoría:**
+    * Los corredores de categoría **Alto Nivel** tienen un coeficiente de $-368.0$, lo que indica que, a igualdad de parcial y género, su tiempo final es aproximadamente 368 segundos más rápido que los corredores de categoría Élite.
+    * Los corredores **Muy Entrenados** tienen un coeficiente de $-848.3$, lo que indica que, a igualdad de parcial y género, su tiempo final es aproximadamente 848.3 segundos más rápido que los corredores de categoría Élite.
+    * Los corredores **Moderadamente Entrenados** tienen un coeficiente de $-1147.0$, lo que indica que, a igualdad de parcial y género, su tiempo final es aproximadamente 1147 segundos más rápido que los corredores de categoría Élite.
+    * Los corredores **Principiantes** tienen un coeficiente de $-128.2$, lo que indica que, a igualdad de parcial y género, su tiempo final es aproximadamente 128.2 segundos más rápido que los corredores de categoría Élite.
 
-Lo que sí es interpretable es que los corredores de Élite (a igualdad de género), necesitan una corrección de tiempo menor que los demás grupos para ajustar su tiempo final (a través del intercepto). Ya que, dado un parcial de 5 km, los corredores de Élite restarán 2531 segundos, mientras que los de las demás categorías restarán más segundos (al tener el dummie correspondiente a esa categoría, en un valor negativo). Esto es matemáticamente lógico ya que a mayor tiempo parcial, mayor es la penalización sufrida por ese 11.51 segundos por cada segundo extra en el parcial.
+La interpretación anterior es matemáticamente correcta, pero presenta un pequeño problema lógico debido al contexto deportivo: es extremadamente improbable encontrar un corredor Élite y un "Moderadamente entrenado" pasando por el parcial de 5km al mismo tiempo. Viven en rangos de tiempo totalmente distinto.
 
+Por lo tanto, una razón por la que los coeficientes son tan grandes para categorías inferiores no es que sean más rápidos, sino que necesitan una corrección mayor debido al error acumulado. 
+
+Podemos explicar esto con el siguiente ejemplo del 5% de error: 
+
+El modelo obliga a usar la misma pendiente (11.51) para todos. Supongamos que esta pendiente tiene un pequeño margen de error o "desajuste" del 5% respecto a la realidad fisiológica de cada corredor. Al ser un modelo lineal (una multiplicación), este error se magnifica con el tiempo:
+
+1. **Caso Élite (Tiempos cortos)**:Supongamos un parcial de 1.000 segundos.La proyección del modelo es $1.000 \times 11.51 = 11.510$.El error del 5% sobre ese total es de unos 575 segundos.Conclusión: El intercepto solo necesita corregir un desvío pequeño.
+2. **Caso Moderadamente Entrenado (Tiempos largos)**:Este corredor tarda el doble: 2.000 segundos en el parcial.La proyección del modelo se dispara: $2.000 \times 11.51 = 23.020$.El error del 5% sobre este total gigante es ahora de 1.151 segundos.Conclusión: Aunque el porcentaje de error es el mismo (5%), la cantidad de segundos sobrantes se ha duplicado.
+
+Por lo tanto, el modelo necesita ajustar los interceptos para cada categoría, y es por eso que los coeficientes toman estos valores. 
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 14.66% de las predicciones dentro del umbral determinado para cada categoría
+- El modelo entrenado, acierta un 20.08% de las predicciones dentro del umbral determinado para cada categoría
 - El RMSE obtenido es de 1563.53, lo que indica un error de 26 minutos aproximadamente, lo cual es muy elevado.
+
+Si desglosamos por categoría, obtenemos:
+
+- Élite: 27.27%
+- Alto nivel: 21.63%
+- Muy entrenado: 17.74%
+- Moderadamente entrenado: 28.11%
+- Principiante: 18.98%
 
 
 ## Etapa 2: Predicción en 10 km
@@ -283,24 +306,62 @@ $$
 \end{aligned}
 $$
 
-En este nuevo modelo, observamos lo siguiente:
+Al incorporar el parcial de 10 km al modelo, observamos un cambio significativo en la estructura de los coeficientes, especialmente en la relación entre los tiempos de paso acumulados.
 
-1.  **Los parciales:**
-    * Observamos que $\beta_{\text{parcial10km}}$ es positivo ($8.63$).
-    * Sin embargo, $\beta_{\text{parcial5km}}$ es **negativo** ($-5.99$). Si tratamos de observar el significado de ambas variables de manera conjunta, observamos que es una especie de comparación entre parciales a través de sus tiempos acumulados. Si un corredor tiene un parcial de 5 km más rápido que otro, pero ambos tienen el mismo parcial a 10 km, el primero habrá ralentizado su ritmo en el segundo tramo, lo que se reflejaría en un peor tiempo final. 
+A primera vista, el coeficiente negativo para el parcial de 5 km ($\beta_{5km} = -5.99$) frente al positivo del 10 km ($\beta_{10km} = 8.63$) puede parecer contraintuitivo. Sin embargo, esto revela que el modelo está evaluando la **estrategia de ritmo (pacing)**.
 
-2.  **La Edad:**
-    * El coeficiente es $-4.98$. Por cada incremento de un año de edad, el tiempo final se reduce en casi 5 segundos (a igualdad de las demás variables). Esto puede indicar que los corredores más experimentados (mayores) saben gestionar mejor su esfuerzo en la carrera.
+Podemos demostrar esto matemáticamente descomponiendo el tiempo acumulado. Dado que el tiempo en el kilómetro 10 es la suma del primer parcial y el segundo tramo:
 
-3.  **Género y Categoría:**
-    * La diferencia a favor de las **Mujeres** se amplía a $-421.4$ segundos respecto a los hombres, reforzando la teoría de que ellas mantienen un ritmo más constante.
-    * Las categorías "Alto Nivel" y "Principiante" dejan de ser estadísticamente significativas ($p > 0.05$) al introducir los parciales. Esto sugiere que el ritmo de carrera (los parciales) ya explica por sí mismo la diferencia de nivel, haciendo redundante la etiqueta de la categoría en esos casos.
+$$
+T_{10km} = T_{0-5km} + T_{5-10km}
+$$
+
+Sustituyendo esto en la ecuación de regresión (simplificada para estas variables):
+
+$$
+\begin{aligned}
+Y &\approx \beta_{5km} \cdot T_{0-5km} + \beta_{10km} \cdot T_{10km} \\
+Y &\approx (-5.99) \cdot T_{0-5km} + (8.63) \cdot (T_{0-5km} + T_{5-10km})
+\end{aligned}
+$$
+
+Agrupando los términos por tramos de carrera, obtenemos la **importancia real de cada segmento**:
+
+$$
+\begin{aligned}
+Y &\approx (-5.99 + 8.63) \cdot T_{0-5km} + 8.63 \cdot T_{5-10km} \\
+Y &\approx \mathbf{2.64} \cdot T_{0-5km} + \mathbf{8.63} \cdot T_{5-10km}
+\end{aligned}
+$$
+
+
+Observando estos coeficientes, podemos concluir que el modelo coge el tramo de 5-10 km y asume que ese es el ritmo sostenido durante la carrera y lo multiplica por 8.63 (8.44 sería la proyección ideal). El tramo inicial lo usa como un residuo para ajustar la fatiga a lo largo de los parciales, pero ya no confía en él para dar la predicción final, si no para ajustar el ritmo.
+
+* **La Edad ($\beta = -4.98$):** Se observa un efecto de mejora con la edad. A igualdad de condiciones en los parciales, por cada año adicional, el tiempo final se reduce en aproximadamente **5 segundos**. Esto podría reflejar una mayor eficiencia o experiencia en la gestión del esfuerzo en corredores veteranos.
+
+* **El Género:** Las **Mujeres** presentan un coeficiente de **-421.4 segundos** respecto a los hombres.
+
+* **Redundancia en Categorías:** Al introducir la información precisa del ritmo (parciales), las categorías **"Alto Nivel"** y **"Principiante"** dejan de ser estadísticamente significativas ($p > 0.05$).
+    * Esto sugiere que los tiempos de paso ($T_{5km}$ y $T_{10km}$) ya capturan la varianza que antes explicaban estas etiquetas. Básicamente, "se corre como un élite o como un principiante" según el cronómetro, haciendo innecesaria la etiqueta clasificatoria adicional en estos grupos.
+
+
+De manera análoga al modelo anterior, los interceptos de las categorías siguen actuando como **correctores de escala**. Dado que el modelo proyecta el tiempo final multiplicando los parciales (que son magnitudes grandes en corredores lentos) por coeficientes positivos, el error absoluto tiende a crecer en los grupos más lentos. Los interceptos negativos grandes en estas categorías compensan esa sobreestimación sistemática del modelo lineal.
 
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 17.96% de las predicciones dentro del umbral determinado para cada categoría.
+- El modelo entrenado, acierta un 24.07% de las predicciones dentro del umbral determinado para cada categoría.
 - El RMSE obtenido es de 1353.82, lo que indica un error de 22 minutos aproximadamente, lo cual continúa siendo muy elevado.
+Respecto a la tasa de aciertos por categoría:
+
+- Élite: 12.12%
+- Alto nivel: 22.81%
+- Muy entrenado: 23.09%
+- Moderadamente entrenado: 35.19%
+- Principiante: 22.49%
+
+
+Observamos que este modelo predice mejor distintas categorías que el anterior.
 
 ## Etapa 3: Predicción en 15 km
 
@@ -347,19 +408,62 @@ tapply(aciertos_15km, train_data$categoria, function(x) mean(x) * 100)
 
 **Interpretación del modelo:**
 
-(redactar)
+Comenzamos observando el modelo resultante y sus coeficientes: 
+
+$$
+\begin{aligned}
+\text{Tiempo}_i = &\beta_0 + \beta_1 \cdot \text{Edad}_i + \beta_2 \cdot \text{Parcial5km}_i + \beta_3 \cdot \text{Parcial10km}_i + \beta_4 \cdot \text{Parcial15km}_i \\
+&+ \sum \beta_j \cdot I(\text{Genero}_{ji}) + \sum \beta_k \cdot I(\text{Categoria}_{ki}) + \epsilon_i
+\end{aligned}
+$$
+
+Y sus valores estimados:
+
+$$
+\begin{aligned}
+\beta_0 &= -1807.0 \quad (\text{Intercepto}) \\
+\beta_{\text{Edad}} &= -7.44 \\
+\beta_{\text{parcial5km}} &= -2.23 \\
+\beta_{\text{parcial10km}} &= -0.70 \\
+\beta_{\text{parcial15km}} &= 4.87 \\
+\beta_{\text{Non-binary}} &= 30.29 \\
+\beta_{\text{Women}} &= -449.0 \\
+\beta_{\text{AltoNivel}} &= -233.2 \\
+\beta_{\text{MuyEntr}} &= -505.6 \\
+\beta_{\text{ModEntr}} &= -567.4 \\
+\beta_{\text{Principiante}} &= 238.9 \\
+\end{aligned}
+$$
+
 
 Se observa una mejora en el ajuste del modelo ($R^2 \approx 0.90$) al incluir el tercer parcial. 
 
-- Edad: Por cada año adicional, el tiempo se reduce en 7.44 segundos. 
-- Género: Las mujeres terminan 449 segundos antes que los hombres. Y los hombres terminan 30.2 segundos antes que los no binarios.
-- Se observa que los parciales tienen coeficientes negativos (parcial_5km y parcial_10km) y positivo (parcial_15km). El coeficiente asignado al parcial_10km no es significativo, lo que hace que este grupo de variables se comporte de manera parecida al anterior, añadiendo un poco más de información a través de un parcial intermedio.
+Analizando los p-valores, observamos que no existe evidencia significativa para distintguir entre el Género No Binario y el género de referencia. Además, tampoco existe evidencia signficativa para distinguir entre las categorías Alto Nivel, Principiante y la categoría de referencia Élite.
 
-- Categoría. Observamos que, menos la categoría "Principiante", las demás categorías tardan menos segundos que la "Élite". Esto sigue sin tener sentido deportivo, ya que la categoría "Élite" debería ser la que menos tiempo tarda.
+Si analizamos los coeficientes de las variables numéricas destripando los tiempos acumulados de los parciales, obtenemos que: 
+
+- Segmento 0-5km: coeficiente de 1.9
+- Segmento 5-10km: coeficiente de 4.17
+- Segmento 10-15km: coeficiente de 4.87
+
+Observando esto, podemos concluir que el ritmo base seguido durante la maratón se estima con los tiempos de paso de los 5-10 y 10-15, y el parcial inicial sirve para ajustar la fatiga y desviación sufrida durante la prueba. 
+
+(estos coeficientes se han calculado derivando la ecuación original como en el modelo anterior).
+
+- Edad: Por cada año adicional, el tiempo se reduce en 7.44 segundos. 
+
+Respecto a las variables categóricas, siguen actuando como correctores de escala para ajustar el error acumulado en las predicciones de los corredores.
 
 **Análisis de resultados:**
-- El modelo entrenado, acierta un 19.65% de las predicciones dentro del margen de ±2 minutos.
+- El modelo entrenado, acierta un 26.44% de las predicciones dentro del margen de ±2 minutos.
 - El RMSE obtenido es de 1224.65, lo que indica un error de 20 minutos aproximadamente, lo cual continúa siendo muy elevado.
+
+Respecto a la tasa de aciertos por categoría:
+- Élite: 18.18%
+- Alto nivel: 26.32%
+- Muy entrenado: 25.02%
+- Moderadamente entrenado: 36.69%
+- Principiante: 25.00%
 
 
 ## Etapa 4: Predicción en 20 km
@@ -402,12 +506,62 @@ tapply(aciertos_20km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
 **Variables seleccionadas para el modelo de 20 km:**
+
 - Edad, Genero, categoria, parcial_5km, parcial_10km, parcial_15km, parcial_20km
+
 **Interpretación del modelo:**
+Al incluir el cuarto parcial acumulado, el modelo alcanza un ajuste de $R^2 \approx 0.93$. Observamos que ahora el intercepto es más pequeño que antes. Esto indica que los parciales están capturando mejor la explicación de la carrera y se necesita menos corrección por parte del intercepto.
+
+La fórmula y coeficientes resultantes son:
+
+$$
+\begin{aligned}
+\text{Tiempo}_i = &\beta_0 + \beta_1 \cdot \text{Edad}_i + \beta_2 \cdot \text{Parcial5km}_i + \beta_3 \cdot \text{Parcial10km}_i + \beta_4 \cdot \text{Parcial15km}_i + \beta_5 \cdot \text{Parcial20km}_i \\
+&+ \sum \beta_j \cdot I(\text{Genero}_{ji}) + \sum \beta_k \cdot I(\text{Categoria}_{ki}) + \epsilon_i
+\end{aligned}
+$$
+
+Y sus valores estimados:
+$$
+\begin{aligned}
+\beta_0 &= -1139.0 \quad (\text{Intercepto}) \\
+\beta_{\text{Edad}} &= -6.96 \\
+\beta_{\text{parcial5km}} &= 0.73 \\
+\beta_{\text{parcial10km}} &= -0.64 \\
+\beta_{\text{parcial15km}} &= -2.43 \\
+\beta_{\text{parcial20km}} &= 4.51 \\
+\beta_{\text{Non-binary}} &= -77.65 \\
+\beta_{\text{Women}} &= -395.9 \\
+\beta_{\text{AltoNivel}} &= -162.5 \\
+\beta_{\text{MuyEntr}} &= -334.1 \\
+\beta_{\text{ModEntr}} &= -303.4 \\
+\beta_{\text{Principiante}} &= 498.5 \\
+\end{aligned}
+$$
+
+Si nos fijamos en los coeficientes de los parciales y derivamos la ecuación para obtener el peso real de cada segmento, obtenemos:
+
+- Segmento 0-5km: coeficiente de 2.17
+- Segmento 5-10km: coeficiente de 1.44
+- Segmento 10-15km: coeficiente de 2.08
+- Segmento 15-20km: coeficiente de 4.51
+
+Esta distribución de pesos indica que el modelo sigue confiando bastante en los dos últimos parciales para estimar la predicción final, lo cual es lógico ya que es la información más nueva y relevante sobre cómo están rindiendo los corredores en directo. Por otro lado, si sumamos el valor de todos los coeficientes, obtenemos 10.2, es decir, aproximadamente 2 parciales más que la suma total de parciales real de la maratón, lo que indica que el modelo sigue prediciendo que en la segunda parte de la prueba hay fatiga.
+
+Respecto a la variable edad, por cada año adicional, el tiempo se reduce en 6.96 segundos. 
+
+Las variables categóricas siguen actuando como correctores de escala para ajustar los tiempos finales.
 
 **Análisis de resultados:**
-- El modelo entrenado, acierta un 23.83% de las predicciones dentro del margen de ±2 minutos.
+- El modelo entrenado, acierta un 31.75% de las predicciones.
 - El RMSE obtenido es de 1041.04, lo que indica un error de 17.35 minutos aproximadamente, lo cual continúa siendo muy elevado.
+
+Respecto a la tasa de aciertos por categoría:
+- Élite: 24.24%
+- Alto nivel: 29.82%
+- Muy entrenado: 30.01%
+- Moderadamente entrenado: 41.77%
+- Principiante: 30.37%
 
 ## Etapa 5: Predicción en 25 km
 
@@ -450,17 +604,12 @@ tapply(aciertos_25km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
 **Variables seleccionadas para el modelo de 25 km:**
-
-<!-- Explica las variables incluidas -->
-
+(por hacer)
 **Interpretación del modelo:**
-
-<!-- Análisis del modelo -->
+(por hacer)
 
 **Análisis de resultados:**
-
-<!-- Comentarios sobre la predicción tras pasar la media maratón -->
-
+(por hacer)
 ## Etapa 6: Predicción en 30 km
 
 **Variables disponibles**: `Edad`, `Genero`, `categoria`, parciales acumulados hasta 30 km, segmentos hasta 30 km
@@ -609,7 +758,7 @@ Podemos observar que el modelo lineal consigue tener tasas de acierto muy altas 
 
 Es por ello que, viendo los resultados obtenidos, a continuación se propone una posible mejora del modelo a través de **Modelo Lineal Múltiple con Interacciones**. 
 
-De esta forma, en los parciales, tendremos una pendiente diferente para cada categoría, permitiendo que el modelo se adapte mejor a las diferentes estrategias de carrera y manteniendo la interpretabilidad del modelo lineal.
+De esta forma, habilitamos la posibilidad de que cada parcial pueda tener una pendiente diferente para cada categoría, permitiendo que el modelo se adapte mejor a las diferentes estrategias de carrera y manteniendo la interpretabilidad del modelo lineal.
 
 Vamos a implementar esta mejora en el modelo de 35 km:
 
@@ -619,11 +768,12 @@ Vamos a implementar esta mejora en el modelo de 35 km:
 # 1. Definición del Modelo Full con INTERACCIONES
 # Nota el cambio: (variables...) * categoria
 modelo_35km_full <- lm(tiempo_oficial ~ Edad + Genero + 
-                         (parcial_5km + parcial_10km + parcial_15km + 
-                          parcial_20km + parcial_25km + parcial_30km + parcial_35km + 
-                          seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + 
-                          seg_20_25 + seg_25_30 + seg_30_35) * categoria, 
+                         (parcial_5km + parcial_10km + 
+                    parcial_15km + parcial_20km + parcial_25km + parcial_30km + parcial_35km
+                     + seg_0_5 + seg_5_10 + seg_10_15 + seg_15_20 + seg_20_25 + 
+                    seg_25_30 + seg_30_35) * categoria, 
                        data = train_data)
+
 
 # 2. Ajustamos el modelo usando selección stepwise
 # Ahora esto es AÚN más importante, porque stepAIC eliminará las interacciones que no aporten nada
@@ -682,6 +832,10 @@ Modelo con interacciones:
     - Élite: 77.27%
 
 Observamos que el modelo con interacciones, mejora la tasa de acierto de todas las categorías, siendo mucho más predictivo en las categorías de mayor nivel (Élite, Muy Entrenado y Alto Nivel). Esto indica que las interacciones permiten capturar mejor las diferencias en estrategias y rendimientos entre las distintas categorías de corredores.
+
+Estadísticamente hablando, el modelo, variable a variable con el t-test, no es significativo (algunas variables), pero el modelo en su conjunto sí lo es (F-test). Esto indica que las variables seleccionadas aportan conjuntamente información relevante para predecir el tiempo final, aunque individualmente algunas no sean significativas debido a que están correlacionadas. Aún así el modelo es explicativo y predice mejor que sin las interacciones.
+
+(redactar esto bien al final)
 
 ---------------------------------------------------------
 # Selección de variables (previo)

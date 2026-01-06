@@ -603,13 +603,67 @@ cat("\n--- Tasa de acierto por categoría ---\n")
 tapply(aciertos_25km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
+
 **Variables seleccionadas para el modelo de 25 km:**
-(por hacer)
+- Edad, Genero, categoria, parcial_5km, parcial_10km, parcial_15km, parcial_20km, parcial_25km
 **Interpretación del modelo:**
-(por hacer)
+Al incluir el quinto parcial acumulado, el modelo alcanza un ajuste de $R^2 \approx 0.956$. Observamos que ahora el intercepto es aún más pequeño que antes. Esto indica que los parciales están capturando mejor la explicación de la carrera y se necesita menos corrección por parte del intercepto.
+
+La fórmula y coeficientes resultantes son:
+$$
+\begin{aligned}
+\text{Tiempo}_i = &\beta_0 + \beta_1 \cdot \text{Edad}_i + \beta_2 \cdot \text{Parcial5km}_i + \beta_3 \cdot \text{Parcial10km}_i + \beta_4 \cdot \text{Parcial15km}_i + \beta_5 \cdot \text{Parcial20km}_i + \beta_6 \cdot \text{Parcial25km}_i \\
+&+ \sum \beta_j \cdot I(\text{Genero}_{ji}) + \sum \beta_k \cdot I(\text{Categoria}_{ki}) + \epsilon_i
+\end{aligned}
+$$
+
+Y sus valores estimados:
+$$
+\begin{aligned}
+\beta_0 &= -885.14 \quad (\text{Intercepto}) \\
+\beta_{\text{Edad}} &= -4.94 \\
+\beta_{\text{parcial5km}} &= 1.46 \\
+\beta_{\text{parcial10km}} &= 0.18 \\
+\beta_{\text{parcial15km}} &= -0.29 \\
+\beta_{\text{parcial20km}} &= -3.01 \\
+\beta_{\text{parcial25km}} &= 4.18 \\
+\beta_{\text{Non-binary}} &= -317.66 \\
+\beta_{\text{Women}} &= -317.42 \\
+\beta_{\text{AltoNivel}} &= -132.97 \\
+\beta_{\text{MuyEntr}} &= -264.99 \\
+\beta_{\text{ModEntr}} &= -216.29 \\
+\beta_{\text{Principiante}} &= 457.21 \\
+\end{aligned}
+$$
+
+Si nos fijamos en los coeficientes de los parciales y derivamos la ecuación para obtener el peso real de cada segmento, obtenemos:
+
+- Segmento 0-5km: coeficiente de 2.52
+- Segmento 5-10km: coeficiente de 1.06
+- Segmento 10-15km: coeficiente de 1.46
+- Segmento 15-20km: coeficiente de 1.17
+- Segmento 20-25km: coeficiente de 4.18
+
+Esta distribución de pesos indica que el modelo predice la mayor parte del tiempo final en base al último parcial del que se sabe información. A partir de aquí, predice que los parciales 5-10 y 15-20 no son tan relevantes para predecir parciales posteriores y sólamente los usa como predictores de su propio parcial. Por último, la suma total de coeficientes es de 10.39, lo que indica que el modelo sigue prediciendo fatiga en el tiempo final según los parciales disponibles.
+
+Respecto a la variable edad, por cada año adicional, el tiempo se reduce en 4.94 segundos.
+
+Las variables categóricas siguen actuando como correctores de escala para ajustar los tiempos finales.
+
 
 **Análisis de resultados:**
-(por hacer)
+
+- El modelo entrenado, acierta un 40.54% de las predicciones dentro del umbral.
+- El RMSE obtenido es de 815.03, lo que indica un error de 13.58 minutos aproximadamente, lo cual continúa siendo muy elevado. 
+Respecto a la tasa de aciertos por categoría:
+
+- Élite: 25.76%
+- Alto nivel: 40.94%
+- Muy entrenado: 37.70%
+- Moderadamente entrenado: 51.79%
+- Principiante: 39.07%
+
+
 ## Etapa 6: Predicción en 30 km
 
 **Variables disponibles**: `Edad`, `Genero`, `categoria`, parciales acumulados hasta 30 km, segmentos hasta 30 km
@@ -650,11 +704,75 @@ cat("\n--- Tasa de acierto por categoría ---\n")
 tapply(aciertos_30km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
+
 **Variables seleccionadas para el modelo de 30 km:**
+
+- Edad, Genero, categoria, parcial_5km, parcial_10km, parcial_15km, parcial_20km, parcial_25km, parcial_30km
 
 **Interpretación del modelo:**
 
+Al incluir el sexto parcial acumulado, el modelo alcanza un ajuste de $R^2 \approx 0.976$. Observamos que ahora el intercepto es aún más pequeño que antes. Esto indica que los parciales están capturando mejor la explicación de la carrera y se necesita menos corrección por parte del intercepto.
+
+La fórmula y coeficientes resultantes son:
+
+$$
+\begin{aligned}
+\text{Tiempo}_i = &\beta_0 + \beta_1 \cdot \text{Edad}_i + \beta_2 \cdot \text{Parcial5km}_i + \beta_3 \cdot \text{Parcial10km}_i + \beta_4 \cdot \text{Parcial15km}_i + \beta_5 \cdot \text{Parcial20km}_i + \beta_6 \cdot \text{Parcial25km}_i + \beta_7 \cdot \text{Parcial30km}_i \\
+&+ \sum \beta_j \cdot I(\text{Genero}_{ji}) + \sum \beta_k \cdot I(\text{Categoria}_{ki}) + \epsilon_i
+\end{aligned}
+$$
+
+Y sus valores estimados:
+
+$$
+\begin{aligned}
+\beta_0 &= -885.83 \quad (\text{Intercepto}) \\
+\beta_{\text{Edad}} &= -5.13 \\
+\beta_{\text{parcial5km}} &= 0.94 \\
+\beta_{\text{parcial10km}} &= 0.33 \\
+\beta_{\text{parcial15km}} &= 0.12 \\
+\beta_{\text{parcial20km}} &= -0.27 \\
+\beta_{\text{parcial25km}} &= -1.94 \\
+\beta_{\text{parcial30km}} &= 3.09 \\
+\beta_{\text{Non-binary}} &= -135.98 \\
+\beta_{\text{Women}} &= -203.95 \\
+\beta_{\text{AltoNivel}} &= -129.50 \\
+\beta_{\text{MuyEntr}} &= -226.22 \\
+\beta_{\text{ModEntr}} &= -206.38 \\
+\beta_{\text{Principiante}} &= 215.35 \\
+\end{aligned}
+$$
+
+Si nos fijamos en los coeficientes de los parciales y derivamos la ecuación para obtener el peso real de cada segmento, obtenemos:
+
+- Segmento 0-5km: coeficiente de 2.27
+- Segmento 5-10km: coeficiente de 1.33
+- Segmento 10-15km: coeficiente de 1
+- Segmento 15-20km: coeficiente de 0.88
+- Segmento 20-25km: coeficiente de 1.15
+- Segmento 25-30km: coeficiente de 3.09
+
+Esta distribución de pesos indica que el modelo sigue prediciendo la mayor parte de los parciales con el último segmento, aunque ha bajado en un punto respecto al modelo anterior. Además, la suma total de coeficientes es de 9.72, lo que indica que el modelo sigue "pasándose de largo" para luego corregir el tiempo con los interceptos, aunque cada vez menos. 
+
+Observamos que el patrón del último parcial es el mejor predictor de tiemp ofinal junto con el parcial inicial. Los demás se multiplican por valores muy cercanos a 1, lo que indica que lo que predicen es muy similar a su valor real al paso por dicho parcial.
+
+Respecto a la variable edad, por cada año adicional, el tiempo se reduce en 5.13 segundos.
+Las variables categóricas siguen actuando como correctores de escala para ajustar los tiempos finales.
+
+
 **Análisis de resultados:**
+
+- El modelo entrenado, acierta un 55.01% de las predicciones dentro del umbral.
+- El RMSE obtenido es de 599.83, lo que indica un error de 10 minutos aproximadamente, lo cual continúa siendo elevado.
+Respecto a la tasa de aciertos por categoría:
+
+- Élite: 45.45%
+- Alto nivel: 54.97%
+- Muy entrenado: 54.17%
+- Moderadamente entrenado: 66.31%
+- Principiante: 53.37%
+
+Este modelo consigue tasas bastante parecidas en todas las categorías, mejorando notablemente las categorías más altas respecto a los modelos anteriores.
 
 ## Etapa 7: Predicción en 35 km
 
@@ -698,9 +816,68 @@ tapply(aciertos_35km, train_data$categoria, function(x) mean(x) * 100)
 
 **Variables seleccionadas para el modelo de 35 km:**
 
+- Edad, Genero, categoria, parcial_5km, parcial_10km, parcial_25km, parcial_30km, parcial_35km
+
 **Interpretación del modelo:**
 
+Al incluir el séptimo parcial acumulado, el modelo alcanza un ajuste de $R^2 \approx 0.9875$. Observamos que ahora el intercepto es más grande que antes. 
+
+La fórmula y coeficientes resultantes son:
+$$
+\begin{aligned}
+\text{Tiempo}_i = &\beta_0 + \beta_1 \cdot \text{Edad}_i + \beta_2 \cdot \text{Parcial5km}_i + \beta_3 \cdot \text{Parcial10km}_i + \beta_4 \cdot \text{Parcial25km}_i + \beta_5 \cdot \text{Parcial30km}_i + \beta_6 \cdot \text{Parcial35km}_i \\
+&+ \sum \beta_j \cdot I(\text{Genero}_{ji}) + \sum \beta_k \cdot I(\text{Categoria}_{ki}) + \epsilon_i
+\end{aligned}
+$$
+
+Y sus valores estimados son:
+
+$$
+\begin{aligned}
+\beta_0 &= -1087.0 \quad (\text{Intercepto}) \\
+\beta_{\text{Edad}} &= -4.04 \\
+\beta_{\text{parcial5km}} &= 0.85 \\
+\beta_{\text{parcial10km}} &= 0.29 \\
+\beta_{\text{parcial25km}} &= -0.14 \\
+\beta_{\text{parcial30km}} &= -0.99 \\
+\beta_{\text{parcial35km}} &= 2.15 \\
+\beta_{\text{Non-binary}} &= -209.4 \\
+\beta_{\text{Women}} &= -122.5 \\
+\beta_{\text{AltoNivel}} &= -149.9 \\
+\beta_{\text{MuyEntr}} &= -264.5 \\
+\beta_{\text{ModEntr}} &= -306.4 \\
+\beta_{\text{Principiante}} &= -96.11 \\
+\end{aligned}
+$$
+
+Aunque haya parciales que no sean consecutivos, podemos seguir derivando cada uno de ellos: 
+
+- Segmento 0-5km: coeficiente de 2.16
+- Segmento 5-10km: coeficiente de 1.31
+- Segmento 10-15km: coeficiente de 1.02
+- Segmento 15-20km: coeficiente de 1.02
+- Segmento 20-25km: coeficiente de 1.02
+- Segmento 25-30km: coeficiente de 1.16
+- Segmento 30-35km: coeficiente de 2.15
+
+Esta distribución de pesos indica que, el modelo predice la suma total de los parciales ponderando como dobles los parciales 1 y 7, y dejando el resto con pesos cercanos a 1. Lo que significa que los parciales aportan al tiempo final sólamente su propio valor. 
+
+
+Respecto a la variable edad, por cada año adicional, el tiempo se reduce en 4.04 segundos.
+Las variables categóricas siguen actuando como correctores de escala para ajustar los tiempos finales.
+
 **Análisis de resultados:**
+
+- El modelo entrenado, acierta un 69.97% de las predicciones dentro del umbral.
+- El RMSE obtenido es de 437.08, lo que indica un error de 7.28 minutos aproximadamente, lo cual continúa siendo elevado.
+Respecto a la tasa de aciertos por categoría:
+
+- Élite: 60.61%
+- Alto nivel: 50.88%
+- Muy entrenado: 69.28%
+- Moderadamente entrenado: 83.76%
+- Principiante: 68.10%
+
 
 
 ## Etapa 8: Predicción en 40 km
@@ -745,16 +922,78 @@ tapply(aciertos_40km, train_data$categoria, function(x) mean(x) * 100)
 
 ```
 
+
 **Variables seleccionadas para el modelo de 40 km:**
+
+- Edad, Genero, categoria, parcial_5km, parcial_10km, parcial_15km, parcial_25km, parcial_35km, parcial_40km
 
 **Interpretación del modelo:**
 
+Al incluir el octavo parcial acumulado, el modelo alcanza un ajuste de $R^2 \approx 0.993$. El modelo tiene muy buena capacidad predictiva pero esto es bastante lógico ya que a 2 km de la meta, el tiempo final ya está muy definido.
+
+La fórmula y coeficientes resultantes son:
+
+$$
+\begin{aligned}
+\text{Tiempo}_i = &\beta_0 + \beta_1 \cdot \text{Edad}_i + \beta_2 \cdot \text{Parcial5km}_i + \beta_3 \cdot \text{Parcial10km}_i + \beta_4 \cdot \text{Parcial15km}_i + \beta_5 \cdot \text{Parcial25km}_i + \beta_6 \cdot \text{Parcial35km}_i + \beta_7 \cdot \text{Parcial40km}_i \\
+&+ \sum \beta_j \cdot I(\text{Genero}_{ji}) + \sum \beta_k \cdot I(\text{Categoria}_{ki}) + \epsilon_i
+\end{aligned}
+$$
+
+Y sus valores estimados son:
+
+$$
+\begin{aligned}
+\beta_0 &= -1194.0 \quad (\text{Intercepto}) \\
+\beta_{\text{Edad}} &= -3.29 \\
+\beta_{\text{parcial5km}} &= 0.76 \\
+\beta_{\text{parcial10km}} &= 0.39 \\
+\beta_{\text{parcial15km}} &= -0.05 \\
+\beta_{\text{parcial25km}} &= -0.03 \\
+\beta_{\text{parcial35km}} &= -0.27 \\
+\beta_{\text{parcial40km}} &= 1.31 \\
+\beta_{\text{Non-binary}} &= -112.8 \\
+\beta_{\text{Women}} &= -64.67 \\
+\beta_{\text{AltoNivel}} &= -164.6 \\
+\beta_{\text{MuyEntr}} &= -296.5 \\
+\beta_{\text{ModEntr}} &= -387.9 \\
+\beta_{\text{Principiante}} &= -286.9 \\
+\end{aligned}
+$$
+
+Si derivamos cada uno de los parciales para obtener los coeficientes de cada segmento, obtenemos lo siguiente:
+
+- Segmento 0-5km: coeficiente de 2.11
+- Segmento 5-10km: coeficiente de 1.35
+- Segmento 10-15km: coeficiente de 0.96
+- Segmento 15-20km: coeficiente de 1.01
+- Segmento 20-25km: coeficiente de 1.01
+- Segmento 25-30km: coeficiente de 1.04
+- Segmento 30-35km: coeficiente de 1.04
+- Segmento 35-40km: coeficiente de 1.31
+
+Observando esto, vemos que el modelo predice el tiempo final aproximadamente, como una suma de los parciales desde el 10 al 35, el 40 calcula el último parcial más los 2 km finales y el primero sigue teniendo un peso alto para predecir el tiempo final. 
+
+Es decir, el modelo suma todo lo que sabe (al multiplicar por 1) y luego en el último añade un extra para ajustar los kilómetros finales. El primer parcial parece tener un peso alto para ajustar fatigas y categorías, que luego son reajustadas con los valores del intercepto.
+
+Respecto a la variable edad, por cada año adicional, el tiempo se reduce en 3.29 segundos.
+Las variables categóricas siguen actuando como correctores de escala para ajustar los tiempos finales.
+
 **Análisis de resultados:**
 
+- El modelo entrenado, acierta un 80.59% de las predicciones dentro del umbral.
+- El RMSE obtenido es de 325.71, lo que indica un error de 5.43 minutos aproximadamente.
+Respecto a la tasa de aciertos por categoría:
+
+- Élite: 62.12%
+- Alto nivel: 42.11%
+- Muy entrenado: 77.33%
+- Moderadamente entrenado: 94.10%
+- Principiante: 79.13%
 
 # Posible Mejora: Modelos más complejos. Interacciones entre variables
 
-Podemos observar que el modelo lineal consigue tener tasas de acierto muy altas en categorías como "Moderadamente entrenado" y "Muy entrenado", pero no consigue predecir bien en categorías como "Élite" o "Principiante". Esto puede deberse a que, una sola pendiente (por cada parcial) para definir el comportamiento de tantos tipos de atletas diferentes no es suficiente.
+Podemos observar que el modelo lineal consigue tener tasas de acierto muy altas en categorías como "Moderadamente entrenado" y "Principiante", pero no consigue predecir bien en categorías como "Élite" o "Alto Nivel". Esto puede deberse a que, una sola pendiente (por cada parcial) para definir el comportamiento de tantos tipos de atletas diferentes no es suficiente.
 
 Es por ello que, viendo los resultados obtenidos, a continuación se propone una posible mejora del modelo a través de **Modelo Lineal Múltiple con Interacciones**. 
 
@@ -806,36 +1045,196 @@ cat("\n--- Tasa de acierto por categoría ---\n")
 tapply(aciertos_35km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
+Call:
+lm(formula = tiempo_oficial ~ Edad + Genero + parcial_5km + parcial_10km + 
+    parcial_25km + parcial_30km + parcial_35km + categoria + 
+    parcial_30km:categoria + parcial_35km:categoria, data = train_data)
 
-Modelo sin interacciones: 
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-5655.3  -237.0   -25.2   217.1  5085.3 
 
-- 55.47% tasa de acierto global
+Coefficients:
+                                                Estimate Std. Error
+(Intercept)                                   -3.976e+02  6.145e+02
+Edad                                          -3.860e+00  2.549e-01
+GeneroNon-binary                              -2.071e+02  9.523e+01
+GeneroWomen                                   -1.038e+02  7.076e+00
+parcial_5km                                    9.028e-01  6.651e-02
+parcial_10km                                   2.843e-01  4.353e-02
+parcial_25km                                  -1.473e-01  2.522e-02
+parcial_30km                                  -1.680e+00  2.280e+00
+parcial_35km                                   2.628e+00  1.953e+00
+categoriaAlto nivel                            1.679e+02  7.049e+02
+categoriaMuy entrenado                        -1.633e+02  6.306e+02
+categoriaModeradamente entrenado              -3.478e+02  6.234e+02
+categoriaPrincipiante                         -8.357e+02  6.149e+02
+parcial_30km:categoriaAlto nivel               1.220e-01  2.414e+00
+parcial_30km:categoriaMuy entrenado           -4.303e-01  2.290e+00
+parcial_30km:categoriaModeradamente entrenado  4.221e-02  2.282e+00
+parcial_30km:categoriaPrincipiante             7.031e-01  2.280e+00
+parcial_35km:categoriaAlto nivel              -1.315e-01  2.070e+00
+parcial_35km:categoriaMuy entrenado            3.775e-01  1.962e+00
+parcial_35km:categoriaModeradamente entrenado -1.223e-03  1.954e+00
+parcial_35km:categoriaPrincipiante            -4.920e-01  1.953e+00
+                                              t value Pr(>|t|)    
+(Intercept)                                    -0.647   0.5176    
+Edad                                          -15.141  < 2e-16 ***
+GeneroNon-binary                               -2.175   0.0296 *  
+GeneroWomen                                   -14.669  < 2e-16 ***
+parcial_5km                                    13.574  < 2e-16 ***
+parcial_10km                                    6.531 6.66e-11 ***
+parcial_25km                                   -5.840 5.30e-09 ***
+parcial_30km                                   -0.737   0.4612    
+parcial_35km                                    1.346   0.1783    
+categoriaAlto nivel                             0.238   0.8117    
+categoriaMuy entrenado                         -0.259   0.7956    
+categoriaModeradamente entrenado               -0.558   0.5768    
+categoriaPrincipiante                          -1.359   0.1741    
+parcial_30km:categoriaAlto nivel                0.051   0.9597    
+parcial_30km:categoriaMuy entrenado            -0.188   0.8510    
+parcial_30km:categoriaModeradamente entrenado   0.018   0.9852    
+parcial_30km:categoriaPrincipiante              0.308   0.7578    
+parcial_35km:categoriaAlto nivel               -0.064   0.9493    
+parcial_35km:categoriaMuy entrenado             0.192   0.8474    
+parcial_35km:categoriaModeradamente entrenado  -0.001   0.9995    
+parcial_35km:categoriaPrincipiante             -0.252   0.8011    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 435.8 on 25293 degrees of freedom
+Multiple R-squared:  0.9876,	Adjusted R-squared:  0.9875 
+F-statistic: 1.004e+05 on 20 and 25293 DF,  p-value: < 2.2e-16
+
+
+=== RESULTADOS ETAPA 35 KM (CON INTERACCIONES) ===
+Tasa de acierto GLOBAL ponderada: 71.47 %
+RMSE: 435.63 segundos
+
+--- Tasa de acierto por categoría ---
+                  Élite              Alto nivel 
+               77.27273                81.87135 
+          Muy entrenado Moderadamente entrenado 
+               83.25018                87.01340 
+           Principiante 
+               68.18403 
+
+**Variables seleccionadas para el modelo de 35 km con interacciones:**
+
+- Edad, Genero, categoria, parcial_5km, parcial_10km, parcial_25km, parcial_30km, parcial_35km, interacciones entre parciales 30 y 35 con categoria
+
+**Interpretación del modelo con interacciones:**
+
+Al incluir interacciones entre los parciales 30 y 35 con la categoría del corredor, el modelo alcanza un ajuste de $R^2 \approx 0.9876$.
+
+La fórmula y coeficientes resultantes son:
+
+$$
+\begin{aligned}
+\text{Tiempo}_i = &\beta_0 + \beta_1 \cdot \text{Edad}_i + \beta_2 \cdot \text{Genero}_i + \beta_3 \cdot \text{Parcial5km}_i + \beta_4 \cdot \text{Parcial10km}_i + \beta_5 \cdot \text{Parcial25km}_i + \beta_6 \cdot \text{Parcial30km}_i + \beta_7 \cdot \text{Parcial35km}_i \\
+&+ \sum \beta_k \cdot I(\text{Categoria}_{ki}) + \sum \beta_{m} \cdot I(\text{Parcial30km}_{i} \times \text{Categoria}_{mi}) + \sum \beta_{n} \cdot I(\text{Parcial35km}_{i} \times \text{Categoria}_{ni}) + \epsilon_i
+\end{aligned}
+$$
+
+Y sus valores estimados son:
+
+$$
+\begin{aligned}
+\beta_0 &= -397.6 \quad (\text{Intercepto}) \\
+\beta_{\text{Edad}} &= -3.86 \\
+\beta_{\text{GeneroNon-binary}} &= -207.1 \\
+\beta_{\text{GeneroWomen}} &= -103.8 \\
+\beta_{\text{parcial5km}} &= 0.90 \\
+\beta_{\text{parcial10km}} &= 0.28 \\
+\beta_{\text{parcial25km}} &= -0.15 \\
+\beta_{\text{parcial30km}} &= -1.68 \\
+\beta_{\text{parcial35km}} &= 2.63 \\
+\beta_{\text{categoriaAlto nivel}} &= 167.9 \\
+\beta_{\text{categoriaMuy entrenado}} &= -163.3 \\
+\beta_{\text{categoriaModeradamente entrenado}} &= -347.8 \\
+\beta_{\text{categoriaPrincipiante}} &= -835.7 \\
+\beta_{\text{parcial30km:categoriaAlto nivel}} &= 0.12 \\
+\beta_{\text{parcial30km:categoriaMuy entrenado}} &= -0.43 \\
+\beta_{\text{parcial30km:categoriaModeradamente entrenado}} &= 0.04 \\
+\beta_{\text{parcial30km:categoriaPrincipiante}} &= 0.70 \\
+\beta_{\text{parcial35km:categoriaAlto nivel}} &= -0.13 \\
+\beta_{\text{parcial35km:categoriaMuy entrenado}} &= 0.38 \\
+\beta_{\text{parcial35km:categoriaModeradamente entrenado}} &= -0.001 \\
+\beta_{\text{parcial35km:categoriaPrincipiante}} &= -0.49 \\
+\end{aligned}
+$$
+
+Si derivamos cada uno de los parciales para obtener los coeficientes de cada segmento, obtenemos lo siguiente para cada categoría: 
+
+Aquí tienes el código listo para copiar y pegar en tu documento Quarto (.qmd).
+
+He optado por presentarlo en formato tabla, que es mucho más elegante y fácil de comparar visualmente para el tribunal que una lista interminable de viñetas. Además, he añadido un bloque de código opcional en R por si prefieres generar la tabla dinámicamente o graficarla.
+
+Opción 1: Tabla Markdown (Copiar y pegar texto)
+Esta opción es la más rápida si solo quieres el texto estático.
+
+Markdown
+
+### Desglose de Coeficientes por Segmento y Categoría
+
+A continuación se detallan los pesos específicos estimados por el modelo para cada tramo de 5 km, en función de la categoría del corredor. Estos coeficientes representan el impacto multiplicativo de cada parcial sobre la proyección del tiempo final.
+
+| Segmento (km) | Élite (Ref) | Principiante | Muy Entrenado | Alto Nivel |
+|:--- | :---: | :---: | :---: | :---: |
+| **0 - 5** | 1.98 | 2.19 | 1.93 | 1.97 |
+| **5 - 10** | 1.08 | 1.29 | 1.03 | 1.07 |
+| **10 - 15** (Hueco) | 0.80 | 1.01 | 0.75 | 0.79 |
+| **15 - 20** (Hueco) | 0.80 | 1.01 | 0.75 | 0.79 |
+| **20 - 25** (Hueco) | 0.80 | 1.01 | 0.75 | 0.79 |
+| **25 - 30** | 0.95 | 1.16 | 0.90 | 0.94 |
+| **30 - 35** | 2.63 | 2.14 | 3.01 | 2.50 |
+
+: Pesos estimados de los parciales por categoría {#tbl-pesos-segmentos}
+
+Podemos observar, mirando los coeficientes que:
+
+- En los parciales del 10 al 25, hay un valle de eficiencia en las categorías más altas, que no se da tanto en las categorías más bajas. Estos parciales ponderan menos en el tiempo final para categorías más profesionales. 
+- Si observamos cuánto pondera el último kilómetro, observamos que en la categoría Muy Entrenado pondera por 3 ese parcial, mientras que si miramos a los atletas Principiantes, pesa por 2.14.
+
+(sacar profundo análisis de esto)
+
+Respecto a la variable edad, por cada año adicional, el tiempo se reduce en 3.86 segundos.
+Ahora sólo el género actúa como corrector de escala para ajustar los tiempos finales.
+
+
+
+**Análisis de resultados:**
+
+- Tasa de acierto global: 71.47%
+- RMSE: 435.63 segundos
+Respecto a la tasa de aciertos por categoría: 
+
+- Élite: 77.27%
+- Alto nivel: 81.87%
+- Muy entrenado: 83.25%
+- Moderadamente entrenado: 87.01%
+- Principiante: 68.18%
+
+**Comparación con el modelo sin interacciones**
+Comparando los resultados del modelo con interacciones con el modelo sin interacciones, observamos lo siguiente:
+**Modelo sin interacciones:**
+
+- 69.97% tasa de acierto global
 - RMSE: 437.08
-- Tasa de acierto por categoría: 
-    - AltoNivel: 50.87%
-    - MuyEntr: 69.28%
-    - ModeradamenteEntr: 71.98%
-    - Principiante: 52.03%
-    - Élite: 60.60%
+Respecto a la tasa de aciertos por categoría:
+
+- Élite: 60.61%
+- Alto nivel: 50.88%
+- Muy entrenado: 69.28%
+- Moderadamente entrenado: 83.76%
+- Principiante: 68.10%
+
+Observamos que el modelo sin interacciones tiene una tasa de acierto global menor y tasas significativamente más bajas en las categorías de mayor nivel (Élite y Alto Nivel). Por lo tanto, el modelo con interacciones mejora las predicciones en las categorías con menores corredores, que era el objetivo en el inicio de esta sección. 
 
 
+Al examinar los coeficientes del modelo con interacciones, nos encontramos con un fenómeno estadístico clásico en modelos complejos: la pérdida de significancia individual (p-valores > 0.05 en los t-tests de las interacciones) coexistiendo con una alta capacidad predictiva y significancia global.
 
-Modelo con interacciones:
-
-- 57.13% tasa de acierto global
-- RMSE: 435.63
-- Tasa de acierto por categoría: 
-    - AltoNivel: 81.87%
-    - MuyEntr: 83.25%
-    - ModeradamenteEntr: 76.19%
-    - Principiante: 52.17%
-    - Élite: 77.27%
-
-Observamos que el modelo con interacciones, mejora la tasa de acierto de todas las categorías, siendo mucho más predictivo en las categorías de mayor nivel (Élite, Muy Entrenado y Alto Nivel). Esto indica que las interacciones permiten capturar mejor las diferencias en estrategias y rendimientos entre las distintas categorías de corredores.
-
-Estadísticamente hablando, el modelo, variable a variable con el t-test, no es significativo (algunas variables), pero el modelo en su conjunto sí lo es (F-test). Esto indica que las variables seleccionadas aportan conjuntamente información relevante para predecir el tiempo final, aunque individualmente algunas no sean significativas debido a que están correlacionadas. Aún así el modelo es explicativo y predice mejor que sin las interacciones.
-
-(redactar esto bien al final)
+Aún así, la inclusión de interacciones permite al modelo capturar variaciones específicas en las estrategias de carrera asociadas a cada categoría, siendo además un modelo explicable y no una "caja negra", lo que es crucial en el ámbito deportivo.
 
 ---------------------------------------------------------
 # Selección de variables (previo)

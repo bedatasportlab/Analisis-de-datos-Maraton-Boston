@@ -100,9 +100,9 @@ En esta sección se construyen modelos de regresión lineal múltiple para prede
 #| label: evaluacion
 
 umbrales_map <- c(
-  "Élite"                  = 60,   # 1 minuto
-  "Alto nivel"             = 90,   # 1.5 minutos
-  "Muy entrenado"          = 120,  # 2 minutos
+  "Élite"                  = 90,   # 1.5 minutos
+  "Alto nivel"             = 120,   # 2 minutos
+  "Muy entrenado"          = 180,  # 3 minutos
   "Moderadamente entrenado" = 240,  # 4 minutos
   "Principiante"           = 420   # 7 minutos
 )
@@ -189,7 +189,7 @@ $$
 \end{aligned}
 $$
 
-A partir de los valores obtenidos, podemos desclosar el efecto de cada variable entendiendo primero la mecánica básica del modelo y luego profundizando en la razón de cada coeficiente:
+A partir de los valores obtenidos, podemos desglosar el efecto de cada variable entendiendo primero la mecánica básica del modelo y luego profundizando en la razón de cada coeficiente:
 
 1. **Parcial en 5 km:**
     * El coeficiente es $11.51$, lo que indica que por cada segundo adicional en el parcial de 5 km, el tiempo final aumenta en aproximadamente 11.51 segundos. También interpretable como que el tiempo tardado en los primeros 5 km se multiplica por 11.51 para estimar el tiempo total. Cabe destacar que en la maratón hay aproximadamente 8 parciales de 5 km, por lo que este coeficiente indica que los corredores comienzan más rápido que el ritmo medio real, asumiendo una pérdida de ritmo progresiva.
@@ -207,7 +207,7 @@ A partir de los valores obtenidos, podemos desclosar el efecto de cada variable 
     * Los corredores **Moderadamente Entrenados** tienen un coeficiente de $-1147.0$, lo que indica que, a igualdad de parcial y género, su tiempo final es aproximadamente 1147 segundos más rápido que los corredores de categoría Élite.
     * Los corredores **Principiantes** tienen un coeficiente de $-128.2$, lo que indica que, a igualdad de parcial y género, su tiempo final es aproximadamente 128.2 segundos más rápido que los corredores de categoría Élite.
 
-La interpretación anterior es matemáticamente correcta, pero presenta un pequeño problema lógico debido al contexto deportivo: es extremadamente improbable encontrar un corredor Élite y un "Moderadamente entrenado" pasando por el parcial de 5km al mismo tiempo. Viven en rangos de tiempo totalmente distinto.
+La interpretación anterior es matemáticamente correcta, pero presenta un problema lógico debido al contexto deportivo: es extremadamente improbable encontrar un corredor Élite y un "Moderadamente entrenado" pasando por el parcial de 5km al mismo tiempo. Viven en rangos de tiempo totalmente distintos.
 
 Por lo tanto, una razón por la que los coeficientes son tan grandes para categorías inferiores no es que sean más rápidos, sino que necesitan una corrección mayor debido al error acumulado. 
 
@@ -215,21 +215,21 @@ Podemos explicar esto con el siguiente ejemplo del 5% de error:
 
 El modelo obliga a usar la misma pendiente (11.51) para todos. Supongamos que esta pendiente tiene un pequeño margen de error o "desajuste" del 5% respecto a la realidad fisiológica de cada corredor. Al ser un modelo lineal (una multiplicación), este error se magnifica con el tiempo:
 
-1. **Caso Élite (Tiempos cortos)**:Supongamos un parcial de 1.000 segundos.La proyección del modelo es $1.000 \times 11.51 = 11.510$.El error del 5% sobre ese total es de unos 575 segundos.Conclusión: El intercepto solo necesita corregir un desvío pequeño.
-2. **Caso Moderadamente Entrenado (Tiempos largos)**:Este corredor tarda el doble: 2.000 segundos en el parcial.La proyección del modelo se dispara: $2.000 \times 11.51 = 23.020$.El error del 5% sobre este total gigante es ahora de 1.151 segundos.Conclusión: Aunque el porcentaje de error es el mismo (5%), la cantidad de segundos sobrantes se ha duplicado.
+1. **Caso Élite (Tiempos cortos)**: Supongamos un parcial de 1.000 segundos. La proyección del modelo es $1.000 \times 11.51 = 11.510$. El error del 5% sobre ese total es de unos 575 segundos. Conclusión: El intercepto solo necesita corregir un desvío pequeño.
+2. **Caso Moderadamente Entrenado (Tiempos largos)**: Este corredor tarda el doble: 2.000 segundos en el parcial. La proyección del modelo se dispara: $2.000 \times 11.51 = 23.020$. El error del 5% sobre este total gigante es ahora de 1.151 segundos. Conclusión: Aunque el porcentaje de error es el mismo (5%), la cantidad de segundos sobrantes se ha duplicado.
 
 Por lo tanto, el modelo necesita ajustar los interceptos para cada categoría, y es por eso que los coeficientes toman estos valores. 
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 20.08% de las predicciones dentro del umbral determinado para cada categoría
+- El modelo entrenado, acierta un 20.65% de las predicciones dentro del umbral determinado para cada categoría
 - El RMSE obtenido es de 1563.53, lo que indica un error de 26 minutos aproximadamente, lo cual es muy elevado.
 
 Si desglosamos por categoría, obtenemos:
 
-- Élite: 27.27%
-- Alto nivel: 21.63%
-- Muy entrenado: 17.74%
+- Élite: 34.85%
+- Alto nivel: 25.15%
+- Muy entrenado: 27.23%
 - Moderadamente entrenado: 28.11%
 - Principiante: 18.98%
 
@@ -350,13 +350,13 @@ De manera análoga al modelo anterior, los interceptos de las categorías siguen
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 24.07% de las predicciones dentro del umbral determinado para cada categoría.
+- El modelo entrenado, acierta un 24.78% de las predicciones dentro del umbral determinado para cada categoría.
 - El RMSE obtenido es de 1353.82, lo que indica un error de 22 minutos aproximadamente, lo cual continúa siendo muy elevado.
 Respecto a la tasa de aciertos por categoría:
 
-- Élite: 12.12%
-- Alto nivel: 22.81%
-- Muy entrenado: 23.09%
+- Élite: 24.24%
+- Alto nivel: 31.58%
+- Muy entrenado: 34.21%
 - Moderadamente entrenado: 35.19%
 - Principiante: 22.49%
 
@@ -455,13 +455,13 @@ Observando esto, podemos concluir que el ritmo base seguido durante la maratón 
 Respecto a las variables categóricas, siguen actuando como correctores de escala para ajustar el error acumulado en las predicciones de los corredores.
 
 **Análisis de resultados:**
-- El modelo entrenado, acierta un 26.44% de las predicciones dentro del margen de ±2 minutos.
+- El modelo entrenado, acierta un 27.23% de las predicciones dentro del margen de ±2 minutos.
 - El RMSE obtenido es de 1224.65, lo que indica un error de 20 minutos aproximadamente, lo cual continúa siendo muy elevado.
 
 Respecto a la tasa de aciertos por categoría:
-- Élite: 18.18%
-- Alto nivel: 26.32%
-- Muy entrenado: 25.02%
+- Élite: 27.27%
+- Alto nivel: 35.09%
+- Muy entrenado: 37.92%
 - Moderadamente entrenado: 36.69%
 - Principiante: 25.00%
 
@@ -553,13 +553,13 @@ Respecto a la variable edad, por cada año adicional, el tiempo se reduce en 6.9
 Las variables categóricas siguen actuando como correctores de escala para ajustar los tiempos finales.
 
 **Análisis de resultados:**
-- El modelo entrenado, acierta un 31.75% de las predicciones.
+- El modelo entrenado, acierta un 32.63% de las predicciones.
 - El RMSE obtenido es de 1041.04, lo que indica un error de 17.35 minutos aproximadamente, lo cual continúa siendo muy elevado.
 
 Respecto a la tasa de aciertos por categoría:
-- Élite: 24.24%
-- Alto nivel: 29.82%
-- Muy entrenado: 30.01%
+- Élite: 31.82%
+- Alto nivel: 42.11%
+- Muy entrenado: 44.05%
 - Moderadamente entrenado: 41.77%
 - Principiante: 30.37%
 
@@ -653,13 +653,13 @@ Las variables categóricas siguen actuando como correctores de escala para ajust
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 40.54% de las predicciones dentro del umbral.
+- El modelo entrenado, acierta un 41.66% de las predicciones dentro del umbral.
 - El RMSE obtenido es de 815.03, lo que indica un error de 13.58 minutos aproximadamente, lo cual continúa siendo muy elevado. 
 Respecto a la tasa de aciertos por categoría:
 
-- Élite: 25.76%
-- Alto nivel: 40.94%
-- Muy entrenado: 37.70%
+- Élite: 43.94%
+- Alto nivel: 51.46%
+- Muy entrenado: 55.73%
 - Moderadamente entrenado: 51.79%
 - Principiante: 39.07%
 
@@ -762,13 +762,13 @@ Las variables categóricas siguen actuando como correctores de escala para ajust
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 55.01% de las predicciones dentro del umbral.
+- El modelo entrenado, acierta un 56.14% de las predicciones dentro del umbral.
 - El RMSE obtenido es de 599.83, lo que indica un error de 10 minutos aproximadamente, lo cual continúa siendo elevado.
 Respecto a la tasa de aciertos por categoría:
 
-- Élite: 45.45%
-- Alto nivel: 54.97%
-- Muy entrenado: 54.17%
+- Élite: 65.15%
+- Alto nivel: 63.15%
+- Muy entrenado: 72.70%
 - Moderadamente entrenado: 66.31%
 - Principiante: 53.37%
 
@@ -868,13 +868,13 @@ Las variables categóricas siguen actuando como correctores de escala para ajust
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 69.97% de las predicciones dentro del umbral.
+- El modelo entrenado, acierta un 70.98% de las predicciones dentro del umbral.
 - El RMSE obtenido es de 437.08, lo que indica un error de 7.28 minutos aproximadamente, lo cual continúa siendo elevado.
 Respecto a la tasa de aciertos por categoría:
 
-- Élite: 60.61%
-- Alto nivel: 50.88%
-- Muy entrenado: 69.28%
+- Élite: 78.80%
+- Alto nivel: 67.25%
+- Muy entrenado: 84.60%
 - Moderadamente entrenado: 83.76%
 - Principiante: 68.10%
 
@@ -981,13 +981,13 @@ Las variables categóricas siguen actuando como correctores de escala para ajust
 
 **Análisis de resultados:**
 
-- El modelo entrenado, acierta un 80.59% de las predicciones dentro del umbral.
+- El modelo entrenado, acierta un 81.62% de las predicciones dentro del umbral.
 - El RMSE obtenido es de 325.71, lo que indica un error de 5.43 minutos aproximadamente.
 Respecto a la tasa de aciertos por categoría:
 
-- Élite: 62.12%
-- Alto nivel: 42.11%
-- Muy entrenado: 77.33%
+- Élite: 78.80%
+- Alto nivel: 64.32%
+- Muy entrenado: 92.44%
 - Moderadamente entrenado: 94.10%
 - Principiante: 79.13%
 
@@ -1045,79 +1045,6 @@ cat("\n--- Tasa de acierto por categoría ---\n")
 tapply(aciertos_35km, train_data$categoria, function(x) mean(x) * 100)
 ```
 
-Call:
-lm(formula = tiempo_oficial ~ Edad + Genero + parcial_5km + parcial_10km + 
-    parcial_25km + parcial_30km + parcial_35km + categoria + 
-    parcial_30km:categoria + parcial_35km:categoria, data = train_data)
-
-Residuals:
-    Min      1Q  Median      3Q     Max 
--5655.3  -237.0   -25.2   217.1  5085.3 
-
-Coefficients:
-                                                Estimate Std. Error
-(Intercept)                                   -3.976e+02  6.145e+02
-Edad                                          -3.860e+00  2.549e-01
-GeneroNon-binary                              -2.071e+02  9.523e+01
-GeneroWomen                                   -1.038e+02  7.076e+00
-parcial_5km                                    9.028e-01  6.651e-02
-parcial_10km                                   2.843e-01  4.353e-02
-parcial_25km                                  -1.473e-01  2.522e-02
-parcial_30km                                  -1.680e+00  2.280e+00
-parcial_35km                                   2.628e+00  1.953e+00
-categoriaAlto nivel                            1.679e+02  7.049e+02
-categoriaMuy entrenado                        -1.633e+02  6.306e+02
-categoriaModeradamente entrenado              -3.478e+02  6.234e+02
-categoriaPrincipiante                         -8.357e+02  6.149e+02
-parcial_30km:categoriaAlto nivel               1.220e-01  2.414e+00
-parcial_30km:categoriaMuy entrenado           -4.303e-01  2.290e+00
-parcial_30km:categoriaModeradamente entrenado  4.221e-02  2.282e+00
-parcial_30km:categoriaPrincipiante             7.031e-01  2.280e+00
-parcial_35km:categoriaAlto nivel              -1.315e-01  2.070e+00
-parcial_35km:categoriaMuy entrenado            3.775e-01  1.962e+00
-parcial_35km:categoriaModeradamente entrenado -1.223e-03  1.954e+00
-parcial_35km:categoriaPrincipiante            -4.920e-01  1.953e+00
-                                              t value Pr(>|t|)    
-(Intercept)                                    -0.647   0.5176    
-Edad                                          -15.141  < 2e-16 ***
-GeneroNon-binary                               -2.175   0.0296 *  
-GeneroWomen                                   -14.669  < 2e-16 ***
-parcial_5km                                    13.574  < 2e-16 ***
-parcial_10km                                    6.531 6.66e-11 ***
-parcial_25km                                   -5.840 5.30e-09 ***
-parcial_30km                                   -0.737   0.4612    
-parcial_35km                                    1.346   0.1783    
-categoriaAlto nivel                             0.238   0.8117    
-categoriaMuy entrenado                         -0.259   0.7956    
-categoriaModeradamente entrenado               -0.558   0.5768    
-categoriaPrincipiante                          -1.359   0.1741    
-parcial_30km:categoriaAlto nivel                0.051   0.9597    
-parcial_30km:categoriaMuy entrenado            -0.188   0.8510    
-parcial_30km:categoriaModeradamente entrenado   0.018   0.9852    
-parcial_30km:categoriaPrincipiante              0.308   0.7578    
-parcial_35km:categoriaAlto nivel               -0.064   0.9493    
-parcial_35km:categoriaMuy entrenado             0.192   0.8474    
-parcial_35km:categoriaModeradamente entrenado  -0.001   0.9995    
-parcial_35km:categoriaPrincipiante             -0.252   0.8011    
----
-Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-Residual standard error: 435.8 on 25293 degrees of freedom
-Multiple R-squared:  0.9876,	Adjusted R-squared:  0.9875 
-F-statistic: 1.004e+05 on 20 and 25293 DF,  p-value: < 2.2e-16
-
-
-=== RESULTADOS ETAPA 35 KM (CON INTERACCIONES) ===
-Tasa de acierto GLOBAL ponderada: 71.47 %
-RMSE: 435.63 segundos
-
---- Tasa de acierto por categoría ---
-                  Élite              Alto nivel 
-               77.27273                81.87135 
-          Muy entrenado Moderadamente entrenado 
-               83.25018                87.01340 
-           Principiante 
-               68.18403 
 
 **Variables seleccionadas para el modelo de 35 km con interacciones:**
 
@@ -1166,15 +1093,6 @@ $$
 
 Si derivamos cada uno de los parciales para obtener los coeficientes de cada segmento, obtenemos lo siguiente para cada categoría: 
 
-Aquí tienes el código listo para copiar y pegar en tu documento Quarto (.qmd).
-
-He optado por presentarlo en formato tabla, que es mucho más elegante y fácil de comparar visualmente para el tribunal que una lista interminable de viñetas. Además, he añadido un bloque de código opcional en R por si prefieres generar la tabla dinámicamente o graficarla.
-
-Opción 1: Tabla Markdown (Copiar y pegar texto)
-Esta opción es la más rápida si solo quieres el texto estático.
-
-Markdown
-
 ### Desglose de Coeficientes por Segmento y Categoría
 
 A continuación se detallan los pesos específicos estimados por el modelo para cada tramo de 5 km, en función de la categoría del corredor. Estos coeficientes representan el impacto multiplicativo de cada parcial sobre la proyección del tiempo final.
@@ -1196,7 +1114,7 @@ Podemos observar, mirando los coeficientes que:
 - En los parciales del 10 al 25, hay un valle de eficiencia en las categorías más altas, que no se da tanto en las categorías más bajas. Estos parciales ponderan menos en el tiempo final para categorías más profesionales. 
 - Si observamos cuánto pondera el último kilómetro, observamos que en la categoría Muy Entrenado pondera por 3 ese parcial, mientras que si miramos a los atletas Principiantes, pesa por 2.14.
 
-(sacar profundo análisis de esto)
+En lo deportivo, esto refleja que según aumenta el nivel del atleta, el rendimiento en la carrera se ve más afectado en los kilómetros finales que en los centrales. Para los deportistas de élite, la carrera se vuelve decisiva en los últimos kilómetros (aguantan bien los tramos primeros y medios, pero sufren en los últimos) mientras que en categorías inferiores la pérdida de ritmo es acumulativa.
 
 Respecto a la variable edad, por cada año adicional, el tiempo se reduce en 3.86 segundos.
 Ahora sólo el género actúa como corrector de escala para ajustar los tiempos finales.
@@ -1205,13 +1123,14 @@ Ahora sólo el género actúa como corrector de escala para ajustar los tiempos 
 
 **Análisis de resultados:**
 
-- Tasa de acierto global: 71.47%
+- Tasa de acierto global: 72.09%
 - RMSE: 435.63 segundos
+
 Respecto a la tasa de aciertos por categoría: 
 
-- Élite: 77.27%
-- Alto nivel: 81.87%
-- Muy entrenado: 83.25%
+- Élite: 90.91%
+- Alto nivel: 87.72%
+- Muy entrenado: 93.23%
 - Moderadamente entrenado: 87.01%
 - Principiante: 68.18%
 
@@ -1219,13 +1138,14 @@ Respecto a la tasa de aciertos por categoría:
 Comparando los resultados del modelo con interacciones con el modelo sin interacciones, observamos lo siguiente:
 **Modelo sin interacciones:**
 
-- 69.97% tasa de acierto global
+- 70.98% tasa de acierto global.
 - RMSE: 437.08
+
 Respecto a la tasa de aciertos por categoría:
 
-- Élite: 60.61%
-- Alto nivel: 50.88%
-- Muy entrenado: 69.28%
+- Élite: 78.80%
+- Alto nivel: 67.25%
+- Muy entrenado: 84.60%
 - Moderadamente entrenado: 83.76%
 - Principiante: 68.10%
 
@@ -1236,291 +1156,43 @@ Al examinar los coeficientes del modelo con interacciones, nos encontramos con u
 
 Aún así, la inclusión de interacciones permite al modelo capturar variaciones específicas en las estrategias de carrera asociadas a cada categoría, siendo además un modelo explicable y no una "caja negra", lo que es crucial en el ámbito deportivo.
 
----------------------------------------------------------
-# Selección de variables (previo)
-
-Para poder crear un modelo útil para la realidad deportiva, se deben seleccionar aquellas variables que expliquen la mayor parte de la varianza.
-
-## Preparar los datasets para el modelado
-
-En primer lugar se juntan los DataFrames *elite* y *clustering_dirigido*, donde se encuentran todas las variables, desde las originales hasta las creadas durante el EDA, el PCA y el clustering. 
+## Evaluación del modelo
 
 ```{r}
-# Seleccionar solo las columnas que necesitamos de clustering
-cols_nuevas_clustering <- c("cluster_final", "PC1", "PC2") # ejemplo
+#| label: modelo-35km-interacciones-evaluacion
+#| 
 
-df_modelo <- elite %>%
-  left_join(
-    clustering_dirigido %>% dplyr::select(Nombre, all_of(cols_nuevas_clustering)),
-    by = "Nombre"
-  )
+# 1. Predicciones usando el modelo optimizado
+pred_35km <- predict(modelo_step_35km, newdata = test_data)
 
-# Convertir categóricas a factor
-df_modelo <- df_modelo %>%
-  mutate(
-    cluster_final = as.factor(cluster_final),
-    Genero = as.factor(Genero)
-  )
+# 2. Evaluación de aciertos con el umbral dinámico por categoría
+# Asegúrate de tener definido 'umbrales_map' como hicimos antes
+vector_umbrales_fila <- umbrales_map[as.character(test_data$categoria)]
+error_absoluto <- abs(test_data$tiempo_oficial - pred_35km)
+aciertos_35km <- error_absoluto <= vector_umbrales_fila
+tasa_acierto_global <- mean(aciertos_35km, na.rm = TRUE) * 100
 
-# Variables numéricas estándar
-df_modelo_std <- df_modelo %>%
-  mutate(across(where(is.numeric), scale, .names = "{.col}_z"))
+# 3. Imprimir Resultados
+cat("\n=== RESULTADOS ETAPA 35 KM (CON INTERACCIONES) ===\n")
+cat("Tasa de acierto GLOBAL ponderada:", round(tasa_acierto_global, 2), "%\n")
+cat("RMSE:", round(sqrt(mean((test_data$tiempo_oficial - pred_35km)^2)), 2), "segundos\n")
+
+cat("\n--- Tasa de acierto por categoría ---\n")
+tapply(aciertos_35km, test_data$categoria, function(x) mean(x) * 100)
 ```
 
-## Variables numéricas y categóricas
+- Tasa de acierto global: 72.15%
+- RMSE: 435.63 segundos
 
-A continuación, se calcula la matriz de correlación para las variables numéricas para descartar aquellas que estén altamente correlacionadas:
+Respecto a la tasa de aciertos por categoría: 
 
-```{r}
-# Numéricas
-num_vars <- df_modelo %>% dplyr::select(where(is.numeric))
-matriz_cor <- cor(num_vars, use = "pairwise.complete.obs")
-kable(matriz_cor, digits = 2, caption = "Matriz de correlaciones")
-```
+- Élite: 87.50%
+- Alto nivel: 96.67%
+- Muy entrenado: 89.96%
+- Moderadamente entrenado: 87.01%
+- Principiante: 68.18%
 
-```{r}
-num_vars <- df_modelo %>% 
-  dplyr::select(where(is.numeric))
-
-cor_mat <- cor(num_vars, use = "pairwise.complete.obs")
-
-corrplot(
-  cor_mat,
-  method = "color",
-  type = "upper",
-  tl.cex = 0.6,
-  number.cex = 0.5
-)
-```
-
-El posterior modelo de regreisón lineal intentará estudiar cuánto cambia el tiempo oficial del atleta en función de las variables explicativas. Una alta correlación de las variables explicativas (parciales) y la variable objetivo (tiempo oficial) implica que unas dependen mucho de otras, resultando imposible modificar una y manteneniendo constantes las demás. Por ello, para el modelo de regresión lineal en el que se explican los factores que más influyen en el tiempo final, se incluirán las que tienen menos correlación con el mismo, las PC y la edad.
-
-```{r}
-# Categóricas
-anova(lm(tiempo_oficial ~ cluster_final, data = df_modelo))
-anova(lm(tiempo_oficial ~ Genero, data = df_modelo))
-```
-
-Genero explica mucha variabilidad y el cluster no, porque la estrategia modula el resultado final pero no lo explica por si mismo.
-
-# Modelo de Regresión Lineal 
-
-## Explicativo
-
-Se ven qué variables afectan más al tiempo final.
-
-```{r}
-modelo_lm <- lm(
-  tiempo_oficial ~ PC1_z + PC2_z + Edad_z + cluster_final + Genero,
-  data = df_modelo_std
-)
-summary(modelo_lm)
-
-par(mfrow = c(2, 2))  # Para poner las 4 gráficas estándar en una ventana
-plot(modelo_lm)
-```
-
-La edad y el género, las PC y el cluster modulan el resultado pero no lo definen. Dos atletas pueden tener estrategias idénticas y rendimientos muy diferentes, o dos estrategias distintas y rendimientos parecidos.
-
-## GAM
-
-Como la edad puede no ser lineal, se hace GAM.
-
-```{r}
-gam_null <- gam(tiempo_oficial ~ 1, data=df_modelo)
-
-gam(
-  tiempo_oficial ~ 
-    s(Edad) +
-    s(PC1) +
-    s(PC2) +
-    cluster_final +
-    Genero,
-  data = df_modelo, select=TRUE
-)
-
-#plot(gam_model, select = 1, shade = TRUE)
-```
-
-## Predictivo
-
-Aqui se toman las variables a partir de las cuales se quiere predecir el tiempo final, no importa que en el apartado de selección de variables se observara una alta correlación.
-
-```{r}
-m1 <- lm(tiempo_oficial ~ medio_maraton, data=df_modelo)
-m2 <- lm(tiempo_oficial ~ medio_maraton + Edad + Genero, data=df_modelo)
-m3 <- lm(tiempo_oficial ~ medio_maraton + Edad + Genero + cluster_final, data=df_modelo)
-
-anova(m1, m2, m3)
-```
-
-```{r}
-modelo_pred_base <- lm(
-  tiempo_oficial ~ medio_maraton + Edad + Genero,
-  data = df_modelo
-)
-
-summary(modelo_pred_base)
-```
-
-```{r}
-df_modelo$tiempo_predicho <- predict(modelo_pred, newdata = df_modelo)
-```
-
-```{r}
-library(ggplot2)
-
-ggplot(df_modelo, aes(x = tiempo_predicho, y = tiempo_oficial)) +
-  geom_point(alpha = 0.6) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
-  labs(
-    x = "Tiempo esperado (predicho)",
-    y = "Tiempo real (oficial)",
-    title = "Tiempo esperado vs tiempo real"
-  ) +
-  theme_minimal()
-```
-
-```{r}
-ggplot(df_modelo, aes(
-  x = tiempo_predicho,
-  y = tiempo_oficial,
-  color = cluster_final
-)) +
-  geom_point(alpha = 0.7) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-  labs(
-    x = "Tiempo esperado",
-    y = "Tiempo real",
-    color = "Estrategia (cluster)",
-    title = "Esperado vs real por estrategia de carrera"
-  ) +
-  theme_minimal()
-```
-
-```{r}
-df_modelo <- df_modelo %>%
-  mutate(
-    error_pred = tiempo_oficial - tiempo_predicho
-  )
-```
-
-```{r}
-ggplot(df_modelo, aes(x = cluster_final, y = error_pred)) +
-  geom_boxplot() +
-  labs(
-    x = "Cluster",
-    y = "Error (real - esperado)",
-    title = "Desviación respecto al tiempo esperado por estrategia"
-  ) +
-  theme_minimal()
-```
-
-## GAM
-
-```{r}
-library(mgcv)
-
-gam_pred <- gam(
-  tiempo_oficial ~ 
-    s(medio_maraton) +
-    s(Edad) +
-    Genero,
-  data = df_modelo
-)
-
-summary(gam_pred)
-plot(gam_pred, pages = 1, shade = TRUE)
-```
-
-## Validación
-
-```{r}
-set.seed(123)
-idx <- sample(seq_len(nrow(df_modelo)), size = 0.7*nrow(df_modelo))
-
-train <- df_modelo[idx, ]
-test  <- df_modelo[-idx, ]
-
-mod_train <- lm(
-  tiempo_oficial ~ medio_maraton + Edad + Genero,
-  data = train
-)
-
-pred <- predict(mod_train, newdata = test)
-
-RMSE <- sqrt(mean((test$tiempo_oficial - pred)^2))
-RMSE
-```
-
-
-
-
-Para predecir el tiempo de la maratón:
-
-1) con los parciales hasta la media maratón
-2) con los tiempos desde la media maratón
-3) con los parciales hasta la media maratón teniendo en cuenta la edad
-4) con los parciales desde la media maratón teniendo en cuenta la edad
-5) con los parciales hasta la media maratón teniendo en cuenta el género
-6) con los parciales desde la media maratón teniendo en cuenta el género
-7) con los parciales hasta la media maratón teniendo en cuenta el cluster
-8) con los parciales desde la media maratón teniendo en cuenta el cluster
-9) teniéndolo todo en cuenta
-10) Puntos que conseguirá en el TPI
-
-```{r}
-names(resultadosTokyo2025)
-
-modelo_parcial_hasta_mm <- lm(tiempo_oficial ~ parcial_5km + parcial_10km + parcial_15km + parcial_20km, medio_maraton,
-               data = resultadosTokyo2025)
-
-summary(modelo_parcial_hasta_mm)
-```
-
-```{r}
-names(resultadosTokyo2025)
-
-modelo_parcial_hasta_mm <- lm(tiempo_oficial ~  parcial_15km + parcial_20km + estrategia, medio_maraton,
-               data = resultadosTokyo2025)
-
-summary(modelo_parcial_hasta_mm)
-```
-
-```{r}
-unique(resultadosTokyo2025$categoria)
-```
-
-```{r}
-par(mfrow = c(2, 2))   # 4 gráficos en una misma ventana
-plot(modelo_parcial_hasta_mm)
-par(mfrow = c(1, 1))
-```
-
-```{r}
-pred <- predict(modelo_parcial_hasta_mm)
-
-plot(resultadosTokyo2025$tiempo_oficial, pred,
-     xlab = "Tiempo real",
-     ylab = "Tiempo predicho",
-     main = "Predicción vs Real - modelo_parcial_hasta_mm")
-
-abline(0, 1, col="red", lwd=2)  # línea ideal
-```
-
-```{r}
-library(ggplot2)
-
-resultadosTokyo2025$pred <- predict(modelo_parcial_hasta_mm)
-
-ggplot(resultadosTokyo2025, aes(x = pred, y = tiempo_oficial)) +
-  geom_point() +
-  geom_abline(intercept = 0, slope = 1, color = "red") +
-  labs(title = "Predicciones vs valores reales - Modelo A",
-       x = "Tiempo predicho",
-       y = "Tiempo real") +
-  theme_minimal()
-```
+Se concluye que el modelo de predicción con interacciones entre variables para el tiempo final al paso de los 35 kilómetros logra tener una gran capacidad de predicción en los umbrales descritos, destacando que en la categoría "Principante" la capacidad de predicción es menor debido a la gran variabilidad de datos. Lo propio de este nivel en comparación con los que están más entrenados es un menor control de la carrera, lo que hace que sean más imprevisibles. Por ello, el modelo no es capaz de encontrar patrones predigan el tiempo final respecto de sus parciales.
 
 # Modelo de Regresión Logística. 
 
@@ -1736,13 +1408,3 @@ Conclusión corta: esta sección proporciona un flujo reproducible para construi
 - Probar distintos umbrales (threshold) para optimizar F1 o sensibilidad.
 - Añadir regularización (glmnet) para estabilidad si observamos multicolinealidad.
 - Incluir variables categóricas (one-hot) y comparar con `categoria_encoded`.
-
-
-
-Para predecir si va a ganar o no/top10 o no/ bajar de x marca o no
-
-- con los valores de PC1 y PC2
-- con los clusters
-
-**Utilidad de los modelos de regresión si ya se sabe el tiempo final**
-Hablar del diagnóstico de rendimiento retrospectivo

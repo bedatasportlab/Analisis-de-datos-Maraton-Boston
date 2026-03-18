@@ -1,27 +1,12 @@
 ---
-title: "Aprendizaje No Supervisado. La Maratón de Tokyo 2025."
-author:
-  - "Alba Martínez de la Hermosa"
-  - "Alonso González Romero"
-  - "Daniel López Paredes"
-date: "2025-11-16"
-format: 
-  html:
-    css: style.css
-    title-block-banner: true
-    embed-resources: true
-    self-contained: true
-toc: true
-toc-depth: 2
-number-sections: true
+title: "Aprendizaje No Supervisado"
 lang: es
-keywords: ["maratón", "análisis de datos", "Tokyo"]
-abstract: "Por realizar"
-execute: 
+execute:
   warning: false
 ---
 
-# Importacion de librerías y datos
+## Importación de librerías y datos
+
 ```{r}
 #| label: carga-librerias
 #| include: false
@@ -36,9 +21,11 @@ source("librerias.R")
 
 # Análisis de Componentes Principales
 
-El **Análisis de Componentes Principales (PCA, por sus siglas en inglés *Principal Component Analysis*)** es una técnica de reducción de dimensionalidad no supervisada que transforma un conjunto de variables correlacionadas en un conjunto más pequeño de variables no correlacionadas llamadas **componentes principales**. 
+El **Análisis de Componentes Principales (PCA, por sus siglas en inglés *Principal Component Analysis*)** es una técnica de reducción de dimensionalidad no supervisada que transforma un conjunto de variables correlacionadas en un conjunto más pequeño de variables no correlacionadas llamadas **componentes principales**.
 
 ## PCA sobre ritmos de carrera a través de los parciales
+
+
 
 En esta sección se realiza un Análisis de Componentes Principales (PCA) centrado específicamente en la categoría **Élite**. Dado que el objetivo es analizar la *estructura del ritmo* y la estrategia de carrera más que la velocidad pura, se han transformado los datos originales siguiendo estos pasos:
 

@@ -1,28 +1,11 @@
 ---
-title: "Análisis Exploratorio de Datos. La Maratón de Tokyo 2025."
-author:
-  - "Alba Martínez de la Hermosa"
-  - "Alonso González Romero"
-  - "Daniel López Paredes"
-date: "2025-10-16"
-format: 
-  html:
-    css: style.css
-    title-block-banner: true
-    embed-resources: true
-    self-contained: true
-toc: true
-toc-depth: 2
-number-sections: true
+title: "Análisis Exploratorio de Datos (EDA)"
 lang: es
-keywords: ["maratón", "análisis de datos", "Tokyo"]
-abstract: "En el presente Análisis Exploratorio de Datos (EDA) se busca comprender los resultados que se han obtenido de la 'Major Marathon' de Tokyo 2025. En la etapa de limpieza se comprobará la coherencia de los datos para seguidamente poder estudiar las variables por separado (Análisis Univariante), crear otras nuevas y conocer cómo se relacionan entre ellas (Análisis Bivariante). De los resultados se podrán extraer conclusiones y plantear nuevas preguntas e ideas que sirvan de base para futuros análisis."
-execute: 
+execute:
   warning: false
 ---
 
-
-# Importación de librerías. 
+## Importación de librerías. 
 
 ```{r, warning:false}
 # Importación de todas las librerías usadas durante el informe y breve descripcion
@@ -46,6 +29,7 @@ library(kableExtra)
 ```
 
 # Introducción
+
 El **maratón de Tokyo 2025** se celebró, en su 18ª edición, el domingo 2 de marzo de 2025. Esta edición forma parte de los World Marathon Majors y abrió la temporada 2025 de los grandes maratones internacionales. El recorrido atraviesa distintos puntos icónicos de la ciudad de Tokyo, estando su inicio frente al edificio del Gobierno Metropolitano y la línea de meta cerca de la estación Tokyo/Gyoko-dori Avenue. La maratón de Tokyo es un evento de gran participación, tanto de atletas de élite como de aficionados. 
 
 En el presente documento se realizará un análisis exploratorio de datos (EDA) con el objetivo de extraer información relevante acerca de los resultados de los corredores que participaron en dicha prueba.

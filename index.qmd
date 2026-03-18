@@ -1,0 +1,13 @@
+---
+title: "Inicio"
+---
+
+## Bienvenida
+
+Este libro reúne tres informes sobre la **Maratón de Tokyo 2025**:
+
+1. Análisis exploratorio de datos (EDA).
+2. Aprendizaje no supervisado.
+3. Aprendizaje supervisado.
+
+El objetivo es ofrecer una lectura unificada del flujo completo: desde la exploración inicial hasta el modelado estadístico y predictivo.

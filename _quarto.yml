@@ -1,0 +1,27 @@
+project:
+  type: book
+  output-dir: docs
+
+book:
+  title: "Análisis de datos · Maratón de Tokyo 2025"
+  author:
+    - "Alba Martínez de la Hermosa"
+    - "Alonso González Romero"
+    - "Daniel López Paredes"
+  date: "2026-03-18"
+  language: es
+  chapters:
+    - index.qmd
+    - EDA_maraton.qmd
+    - Aprendizaje_No_Supervisado.qmd
+    - Aprendizaje_Supervisado.qmd
+
+format:
+  html:
+    theme: cosmo
+    css: style.css
+    toc: true
+    number-sections: true
+
+execute:
+  warning: false

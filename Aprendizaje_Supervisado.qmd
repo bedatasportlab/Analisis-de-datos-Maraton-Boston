@@ -1,27 +1,12 @@
 ---
-title: "Aprendizaje Supervisado. La Maratón de Tokyo 2025."
-author:
-  - "Alba Martínez de la Hermosa"
-  - "Alonso González Romero"
-  - "Daniel López Paredes"
-date: "2025-11-16"
-format: 
-  html:
-    css: style.css
-    title-block-banner: true
-    embed-resources: true
-    self-contained: true
-toc: true
-toc-depth: 2
-number-sections: true
+
+title: "Aprendizaje Supervisado"
 lang: es
-keywords: ["maratón", "análisis de datos", "Tokyo"]
-abstract: "Este documento presenta un análisis de aprendizaje supervisado basado en modelos de regresión lineal múltiple para predecir el tiempo final de una maratón de forma progresiva, utilizando datos de parciales acumulados y características del corredor."
 execute: 
   warning: false
 ---
 
-# Importación de librerías y datos
+## Importación de librerías y datos
 
 ```{r}
 #| label: carga-librerias
@@ -37,6 +22,8 @@ source("librerias.R")
 # Preprocesamiento de los datos
 
 En esta sección se preparan los datos para el modelado. Se calculan los tiempos de cada segmento de 5 km (segmentos parciales), que representan el tiempo empleado únicamente en ese tramo específico de la carrera.
+
+
 
 ```{r}
 #| label: preprocesamiento
